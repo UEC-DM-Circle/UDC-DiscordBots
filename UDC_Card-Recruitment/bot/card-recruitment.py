@@ -1,7 +1,8 @@
+import os
+import json
+import asyncio
 import discord
 from discord.ext import commands
-import os
-import asyncio
 from save_list import *
 
 # 初期設定
@@ -178,9 +179,13 @@ async def send_log():
         for key in recruitment if any(item["active"] for item in recruitment[key])
     }
     recruitment = buffa
-    await channel.send(f'```\n{recruitment}\n```')
+    with open("recruitment.json", "w", encoding="utf-8") as file:
+        json.dump(recruitment, file, ensure_ascii=False)
+    await channel.send(file = discord.File("recruitment.json"))
+    os.remove("recruitment.json")
 @client.event
 async def on_ready():
+    await send_log()
     channel = client.get_channel(log_channel_id)
     print("Bot is ready!")
     while True:
