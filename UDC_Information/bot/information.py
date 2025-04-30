@@ -1,9 +1,10 @@
 import discord
 from discord.ext import commands
-import asyncio
-import os
 import requests
 from bs4 import BeautifulSoup
+import asyncio
+import os
+import time
 
 TOKEN =  os.getenv("TOKEN")
 # 入賞数ランキング
@@ -32,6 +33,7 @@ latest_images=[]
 
 async def ready(num:int):
     old_articles=[]
+    time.sleep(1)
     response = requests.get(denen_url)
     soup = BeautifulSoup(response.text, "html.parser")
     articles = soup.find_all("div",class_="EntryTitle")
@@ -43,6 +45,7 @@ async def ready(num:int):
     return old_articles
 
 async def get_new_video():
+    time.sleep(1)
     response = requests.get(search_url)
     data = response.json()
     video_id = data["items"][0]["id"]["videoId"]
@@ -58,6 +61,7 @@ async def check_new_video():
 
 async def get_new_articles():
     try:
+        time.sleep(1)
         response = requests.get(denen_url)
         soup = BeautifulSoup(response.text, "html.parser")
         article = soup.find_all("div",class_="EntryTitle")
