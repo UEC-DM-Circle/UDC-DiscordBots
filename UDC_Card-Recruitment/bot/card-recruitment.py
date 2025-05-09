@@ -170,7 +170,6 @@ async def test(ctx):
         await ctx.send("Card-Recruitment Bot is Working!")
 async def send_log():
     global recruitment
-    channel = client.get_channel(log_channel_id)
     buffa = {
         key: [
             {'want': item["want"], 'num': item["num"], 'active': True}
@@ -181,8 +180,12 @@ async def send_log():
     recruitment = buffa
     with open("recruitment.json", "w", encoding="utf-8") as file:
         json.dump(recruitment, file, ensure_ascii=False)
-    await channel.send(file = discord.File("recruitment.json"))
-    os.remove("recruitment.json")
+    try:
+        channel = client.get_channel(log_channel_id)
+        await channel.send(file = discord.File("recruitment.json"))
+        os.remove("recruitment.json")
+    except:
+        print("Failed to send log file.")
 @client.event
 async def on_ready():
     await send_log()
