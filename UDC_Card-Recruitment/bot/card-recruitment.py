@@ -178,21 +178,27 @@ async def send_log():
         for key in recruitment if any(item["active"] for item in recruitment[key])
     }
     recruitment = buffa
-    with open("recruitment.json", "w", encoding="utf-8") as file:
-        json.dump(recruitment, file, ensure_ascii=False)
-    try:
-        channel = client.get_channel(log_channel_id)
-        await channel.send(file = discord.File("recruitment.json"))
-        os.remove("recruitment.json")
-    except:
-        print("Failed to send log file.")
+    previous_json = {}
+    with open("recruitment.json", "r", encoding="utf-8") as file:
+        try:
+            previous_json = json.load(file)
+        except:
+            pass
+    if recruitment != previous_json:
+        with open("recruitment.json", "w", encoding="utf-8") as file:
+            json.dump(recruitment, file, ensure_ascii=False)
+        try:
+            channel = client.get_channel(log_channel_id)
+            await channel.send(file = discord.File("recruitment.json"))
+        except:
+            print("Failed to send log file.")
 @client.event
 async def on_ready():
     await send_log()
     channel = client.get_channel(log_channel_id)
     print("Bot is ready!")
     while True:
-        await asyncio.sleep(900)
+        await asyncio.sleep(150)
         await send_log()
 
 client.run(TOKEN)
