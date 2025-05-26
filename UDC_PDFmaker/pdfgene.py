@@ -2,8 +2,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-import chromedriver_binary
-import shutil
+from webdriver_manager.chrome import ChromeDriverManager
 import time
 import requests
 import re
@@ -13,6 +12,8 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
 from reportlab.lib.pagesizes import A4, portrait
 import glob
+import numpy as np
+from PIL import Image
 
 margin = 0
 margin_tp = 15
@@ -39,9 +40,10 @@ def getHFromW(w):
 def getWFromH(h):
   return CARDHIGHT * h / CARDWIDTH
 
-def crop(image): #引数は画像の相対パス
+def crop(image_bytes): #引数はbyte画像
   # 画像の読み込み
-  img = cv2.imread(image)
+  nparr = np.frombuffer(image_bytes, np.uint8)
+  img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
   # Grayscale に変換
   gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
   # 色空間を二値化
@@ -64,18 +66,15 @@ def crop(image): #引数は画像の相対パス
   y1_min = min(y1)
   x2_max = max(x2)
   y2_max = max(y2)
-  img = img[y1_min:y2_max, x1_min:x2_max]
-  return img
+  cropped_img = img[y1_min:y2_max, x1_min:x2_max]
+  rgb = cv2.cvtColor(cropped_img, cv2.COLOR_BGR2RGB)
+  pil_img = Image.fromarray(rgb)
+
+  return pil_img
 
 def pdfgene(url):
-  #picsフォルダの準備
   print('start')
-  if not os.path.exists(pics_folder_path):
-    os.mkdir(pics_folder_path)
-  else:
-    shutil.rmtree(pics_folder_path)
-    os.mkdir(pics_folder_path)
-  service = Service('/usr/bin/chromedriver')
+  service = Service(ChromeDriverManager().install())
   chrome_options = Options()
   chrome_options.add_argument('--no-sandbox')
   chrome_options.add_argument('--disable-dev-shm-usage')
@@ -95,52 +94,29 @@ def pdfgene(url):
   driver.quit()
   #画像のダウンロード
   count = 0
+  download_imgs = []
   for src in srcs:
     page = src.replace('/img/s/', '/img/')
     r = requests.get(page)
     count += 1
-    img_name = "{}.jpg".format(str(count).zfill(2) + '_' + src.split("/")[7])
-    image_path = pics_folder_path + '/' + img_name
     if r.status_code == 200:
-      with open(image_path, "wb") as f:
-        f.write(r.content)
+      download_imgs.append(r.content)
   #pdf作成と画像追加
   page = canvas.Canvas(pdf_name, pagesize=portrait(A4))
-  file_names = os.listdir(pics_folder_path)
-  image_files = [
-      os.path.join(pics_folder_path, file_name) for file_name in file_names
-      if file_name.endswith(('.jpg', '.png', '.bmp'))
-  ]
-  exfiles = []
-  for path in image_files:
-    if re.match(".*_3\.jpg", path):
-      exfiles.append(path)
-      image_files.remove(path)
-    if re.match(".*_4\.jpg", path):
-      image_files.append(path)
-      exfiles.remove(path)
-  sorted_files = sorted(image_files)
-  for img in sorted_files:
-    cv2.imwrite(img, crop(img))
-  for i in range(0, len(sorted_files), 9):
+
+  croped_imgs = [ crop(dimg) for dimg in download_imgs]
+  for i in range(0, len(croped_imgs), 9):
     for j in range(9):
-      if i + j < len(sorted_files):
-        page.drawInlineImage(sorted_files[i + j],
-                             width(j) * mm,
-                             height(j) * mm, card_w * mm, card_h * mm)
+      if i + j < len(croped_imgs):
+        page.drawInlineImage(croped_imgs[i + j], width(j) * mm, height(j) * mm, card_w * mm, card_h * mm)
     page.showPage()
   page.save()
-  rmpics()
   print("complete")
-
-def rmpics():
-  if (os.path.isdir(pics_folder_path)):
-    shutil.rmtree(pics_folder_path)
 
 def rmpdf():
   pdf_files = glob.glob(os.path.join('*.pdf'))
   for file in pdf_files:
-      try:
-          os.remove(file)
-      except Exception as e:
-          pass
+    try:
+      os.remove(file)
+    except Exception as e:
+      pass
