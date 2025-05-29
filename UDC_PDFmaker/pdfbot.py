@@ -54,7 +54,6 @@ async def pdfmake(ctx, url: str):
   pg.rmpdf()
 
 
-pg.rmpics()
 pg.rmpdf()
 
 client.run(TOKEN)
