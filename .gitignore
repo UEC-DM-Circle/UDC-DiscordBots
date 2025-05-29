@@ -8,3 +8,4 @@ schedule.py
 save_list.py
 *.json
 *.pdf
+*.log
