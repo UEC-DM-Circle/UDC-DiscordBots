@@ -53,7 +53,7 @@ async def pdfmake(ctx, url: str):
   await ctx.send(f"{ctx.author.mention} 生成完了しました")
   pg.rmpdf()
 
-pg.rmpics()
+# pg.rmpics()
 pg.rmpdf()
 
 client.run(TOKEN)
