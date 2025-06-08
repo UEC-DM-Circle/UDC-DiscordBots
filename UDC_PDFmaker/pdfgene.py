@@ -110,7 +110,10 @@ def pdfgene(url):
     # 一時ディレクトリを作ってuser-data-dirとして使う（競合を防ぐ）
     temp_user_data_dir = tempfile.mkdtemp()
     chrome_options.add_argument(f"--user-data-dir={temp_user_data_dir}")
+    # Linuxの場合
     service = Service("/usr/bin/chromedriver")
+    # Windowsの場合は以下のようにパスを指定
+    # service = Service("C:\\path\\to\\chromedriver.exe")
     driver = webdriver.Chrome(service=service, options=chrome_options)
     try:
         # デッキページにアクセス
