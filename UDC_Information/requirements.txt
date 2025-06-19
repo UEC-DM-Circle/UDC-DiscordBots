@@ -2,3 +2,4 @@ py-cord == 2.2.2
 discord.py == 2.4.0
 google-api-python-client == 2.147.0
 beautifulsoup4 == 4.12.3
+mysql-connector-python == 9.3.0
