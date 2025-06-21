@@ -63,7 +63,7 @@ async def judge_article_title(title: str):
 class Crawler:
     async def get_image_size(url: str):
         try:
-            asyncio.sleep(1)
+            await asyncio.sleep(1)
             response = requests.get(url, stream=True).raw
             image = Image.open(response)
             image.verify()
@@ -81,7 +81,7 @@ class Crawler:
 
     async def get_soup(url: str):
         try:
-            asyncio.sleep(1)
+            await asyncio.sleep(1)
             response = requests.get(url)
             if response.status_code == 200:
                 return BeautifulSoup(response.text, "html.parser")
