@@ -17,7 +17,7 @@ DISCORD_NEWCARD_CHANNEL_ID = int(os.environ.get("DISCORD_NEWCARD_CHANNEL_ID"))
 DISCORD_RESULT_CHANNEL_ID = int(os.environ.get("DISCORD_RESULT_CHANNEL_ID"))
 intent = discord.Intents.default()
 intent.message_content = True
-client = commands.Bot(command_prefix="-", intents=intent)
+client = commands.Bot(command_prefix="+", intents=intent)
 
 conn = mysql.connector.connect(
     host=os.getenv("DB_HOST"),
