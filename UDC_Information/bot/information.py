@@ -2,11 +2,11 @@ import discord
 from discord.ext import commands
 import requests
 from bs4 import BeautifulSoup
+from PIL import Image
 import mysql.connector
 import asyncio
 import os
 import time
-import re
 
 TOKEN = os.getenv("TOKEN")
 # 入賞数ランキング
@@ -50,7 +50,7 @@ async def judge_article_title(title: str):
             return "gp_result"
         # https://supersolenoid.jp/blog-entry-42770.html
         return "cs_result"
-    elif "』が公開" in title:
+    elif "が" in title and "公開" in title:
         # https://supersolenoid.jp/blog-entry-42669.html
         return "new_card"
     elif "新情報まとめ" in title:
@@ -63,14 +63,12 @@ async def judge_article_title(title: str):
 class Crawler:
     async def get_image_size(url: str):
         try:
-            time.sleep(1)
-            response = requests.get(url)
-            soup = BeautifulSoup(response.text, "html.parser")
-            title = soup.find("title").text
-            match = re.search(r"\((\d+)×(\d+)\)", title)
-            if match:
-                width, height = match.groups()
-                return (int(width), int(height))
+            asyncio.sleep(1)
+            response = requests.get(url, stream=True).raw
+            image = Image.open(response)
+            image.verify()
+            width, height = image.size
+            return (width, height)
         except:
             return "ERROR"
 
@@ -79,12 +77,11 @@ class Crawler:
             size = await Crawler.get_image_size(url)
             if size != "ERROR":
                 return size
-            time.sleep(2**attempt)
         return (0, 0)  # サイズが見つからない場合は(0, 0)を返す
 
     async def get_soup(url: str):
         try:
-            time.sleep(1)
+            asyncio.sleep(1)
             response = requests.get(url)
             if response.status_code == 200:
                 return BeautifulSoup(response.text, "html.parser")
@@ -98,7 +95,6 @@ class Crawler:
             soup = await Crawler.get_soup(url)
             if soup != "ERROR":
                 return soup
-            time.sleep(2**attempt)
         return "FAILED"
 
     async def get_new_articles():
@@ -159,7 +155,7 @@ class Parser:
             ),
         )
         conn.commit()
-        await client.get_channel(DISCORD_INFO_CHANNEL_ID).send(ranking_img)
+        # await client.get_channel(DISCORD_INFO_CHANNEL_ID).send(ranking_img)
         return
 
     async def parse_cs_result_many(new_article: dict):
@@ -179,7 +175,7 @@ class Parser:
             (url, new_article["title"], new_article["article_type"], "UDC_Information"),
         )
         conn.commit()
-        await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(url)
+        # await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(url)
         return
 
     async def parse_cs_result_hatti(new_article: dict):
@@ -195,11 +191,11 @@ class Parser:
         if soup == "FAILED":
             return
         divisions = soup.find_all("div", class_="caption_white")
-        result_div = divisions[0].find("div")
+        result_div = divisions[0]
         for br in result_div.find_all("br"):
             br.replace_with("\n")
         result_sentence = result_div.text
-        names_div = divisions[1].find("div")
+        names_div = divisions[1]
         for br in names_div.find_all("br"):
             br.replace_with("\n")
         names = names_div.text
@@ -224,17 +220,18 @@ class Parser:
                     for figure in figures
                     if figure.find("img") is not None
                 ]
-        await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(
-            f"{result_sentence}\n\n{names}"
-        )
+        # await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(
+        #     f"{result_sentence}\n\n{names}"
+        # )
         cursor.execute(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
             (url, new_article["title"], new_article["article_type"], "UDC_Information"),
         )
         conn.commit()
         for image in images:
+            print(image)
             deck_image_size = await Crawler.try_to_get_image_size(image)
-            await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(image)
+            # await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(image)
             cursor.execute(
                 "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
                 (
@@ -265,15 +262,15 @@ class Parser:
         if len(divisions) < 3:
             # 記事が完成していない
             return
-        result_div = divisions[0].find("div")
+        result_div = divisions[0]
         for br in result_div.find_all("br"):
             br.replace_with("\n")
         result_sentence = result_div.text
-        names_div = divisions[1].find("div")
+        names_div = divisions[1]
         for br in names_div.find_all("br"):
             br.replace_with("\n")
         names = names_div.text
-        distribution_div = divisions[2].find("div")
+        distribution_div = divisions[2]
         for br in distribution_div.find_all("br"):
             br.replace_with("\n")
         distribution = distribution_div.text
@@ -284,9 +281,9 @@ class Parser:
         if images == []:
             # デッキ画像がない
             return
-        await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(
-            f"{result_sentence}\n\n{names}\n\n{distribution}"
-        )
+        # await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(
+        #     f"{result_sentence}\n\n{names}\n\n{distribution}"
+        # )
         cursor.execute(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
             (url, new_article["title"], new_article["article_type"], "UDC_Information"),
@@ -294,7 +291,7 @@ class Parser:
         conn.commit()
         for image in images:
             deck_image_size = await Crawler.try_to_get_image_size(image)
-            await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(image)
+            # await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(image)
             cursor.execute(
                 "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
                 (
@@ -322,11 +319,11 @@ class Parser:
         if soup == "FAILED":
             return
         divisions = soup.find_all("div", class_="caption_white")
-        result_div = divisions[0].find("div")
+        result_div = divisions[0]
         for br in result_div.find_all("br"):
             br.replace_with("\n")
         result_sentence = result_div.text
-        names_div = divisions[1].find("div")
+        names_div = divisions[1]
         for br in names_div.find_all("br"):
             br.replace_with("\n")
         names = names_div.text
@@ -334,9 +331,9 @@ class Parser:
         images = [
             img.find("img").get("src") for img in imgs if img.find("img") is not None
         ]
-        await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(
-            f"{result_sentence}\n\n{names}"
-        )
+        # await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(
+        #     f"{result_sentence}\n\n{names}"
+        # )
         cursor.execute(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
             (url, new_article["title"], new_article["article_type"], "UDC_Information"),
@@ -344,7 +341,7 @@ class Parser:
         conn.commit()
         for image in images:
             deck_image_size = await Crawler.try_to_get_image_size(image)
-            await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(image)
+            # await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(image)
             cursor.execute(
                 "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
                 (
@@ -360,6 +357,7 @@ class Parser:
         return
 
     async def parse_new_card(new_article: dict):
+        url = new_article["url"]
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
             return
@@ -367,7 +365,6 @@ class Parser:
             "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'new_card'"
         )
         sent_urls = await clean_list(cursor.fetchall())
-        url = new_article["url"]
         # 1回だけ追加する
         if url not in sent_urls:
             cursor.execute(
@@ -393,20 +390,19 @@ class Parser:
                 for newcard_img in newcard_imgs
                 if newcard_img.get("src") is not None
             ]
-        sent_images = await clean_list(
-            cursor.execute(
-                "SELECT url FROM sent_images WHERE service = 'UDC_Information' AND category = 'new_card'"
-            )
+        cursor.execute(
+            "SELECT url FROM sent_images WHERE service = 'UDC_Information' AND category = 'new_card'"
         )
+        sent_images = await clean_list(cursor.fetchall())
         for newcard_image in newcard_images:
             if newcard_image in sent_images:
                 # すでに送信済みの画像はスキップ
                 continue
-            if "ensc" not in newcard_image:
-                # enscが含まれていない画像は広告
+            if "evwoh" in newcard_image:
+                # evwohが含まれている画像は広告
                 continue
             newcard_image_size = await Crawler.try_to_get_image_size(newcard_image)
-            if newcard_image_size[0] >= 1000:
+            if newcard_image_size[0] >= 1500:
                 # 横長画像は広告
                 continue
             if (
@@ -415,7 +411,7 @@ class Parser:
             ):
                 # 正方形画像は広告
                 continue
-            await client.get_channel(DISCORD_NEWCARD_CHANNEL_ID).send(newcard_image)
+            # await client.get_channel(DISCORD_NEWCARD_CHANNEL_ID).send(newcard_image)
             cursor.execute(
                 "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
                 (
@@ -431,6 +427,7 @@ class Parser:
         return
 
     async def parse_stream(new_article: dict):
+        url = new_article["url"]
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
             return
@@ -438,7 +435,6 @@ class Parser:
             "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'stream'"
         )
         sent_urls = await clean_list(cursor.fetchall())
-        url = new_article["url"]
         # 1回だけ追加する
         if url not in sent_urls:
             cursor.execute(
@@ -457,26 +453,28 @@ class Parser:
             for streamed_img in streamed_imgs
             if streamed_img.get("src") is not None
         ]
-        sent_images = await clean_list(
-            cursor.execute(
-                "SELECT url FROM sent_images WHERE service = 'UDC_Information'  AND category = 'stream'"
-            )
+        cursor.execute(
+            "SELECT url FROM sent_images WHERE service = 'UDC_Information'  AND category = 'stream'"
         )
+        sent_images = await clean_list(cursor.fetchall())
         for streamed_image in streamed_images:
             if streamed_image in sent_images:
                 # すでに送信済みの画像はスキップ
                 continue
-            if "ensc" not in streamed_image:
-                # enscが含まれていない画像は広告
+            if "evwoh" in streamed_image:
+                # evwohが含まれている画像は広告
                 continue
             streamed_image_size = await Crawler.try_to_get_image_size(streamed_image)
+            if streamed_image_size[0] >= 1500:
+                # 横長画像は広告
+                continue
             if (
                 streamed_image_size[0] == streamed_image_size[1]
                 and streamed_image_size[0] != 0
             ):
                 # 正方形画像は広告
                 continue
-            await client.get_channel(DISCORD_INFO_CHANNEL_ID).send(streamed_image)
+            # await client.get_channel(DISCORD_INFO_CHANNEL_ID).send(streamed_image)
             cursor.execute(
                 "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
                 (
