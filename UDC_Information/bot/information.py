@@ -229,7 +229,6 @@ class Parser:
         )
         conn.commit()
         for image in images:
-            print(image)
             deck_image_size = await Crawler.try_to_get_image_size(image)
             await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(image)
             cursor.execute(
