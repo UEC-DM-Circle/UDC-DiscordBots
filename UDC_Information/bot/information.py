@@ -155,7 +155,7 @@ class Parser:
             ),
         )
         conn.commit()
-        # await client.get_channel(DISCORD_INFO_CHANNEL_ID).send(ranking_img)
+        await client.get_channel(DISCORD_INFO_CHANNEL_ID).send(ranking_img)
         return
 
     async def parse_cs_result_many(new_article: dict):
@@ -175,7 +175,7 @@ class Parser:
             (url, new_article["title"], new_article["article_type"], "UDC_Information"),
         )
         conn.commit()
-        # await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(url)
+        await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(url)
         return
 
     async def parse_cs_result_hatti(new_article: dict):
@@ -220,9 +220,9 @@ class Parser:
                     for figure in figures
                     if figure.find("img") is not None
                 ]
-        # await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(
-        #     f"{result_sentence}\n\n{names}"
-        # )
+        await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(
+            f"{result_sentence}\n\n{names}"
+        )
         cursor.execute(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
             (url, new_article["title"], new_article["article_type"], "UDC_Information"),
@@ -231,7 +231,7 @@ class Parser:
         for image in images:
             print(image)
             deck_image_size = await Crawler.try_to_get_image_size(image)
-            # await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(image)
+            await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(image)
             cursor.execute(
                 "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
                 (
@@ -281,9 +281,9 @@ class Parser:
         if images == []:
             # デッキ画像がない
             return
-        # await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(
-        #     f"{result_sentence}\n\n{names}\n\n{distribution}"
-        # )
+        await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(
+            f"{result_sentence}\n\n{names}\n\n{distribution}"
+        )
         cursor.execute(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
             (url, new_article["title"], new_article["article_type"], "UDC_Information"),
@@ -291,7 +291,7 @@ class Parser:
         conn.commit()
         for image in images:
             deck_image_size = await Crawler.try_to_get_image_size(image)
-            # await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(image)
+            await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(image)
             cursor.execute(
                 "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
                 (
@@ -331,9 +331,9 @@ class Parser:
         images = [
             img.find("img").get("src") for img in imgs if img.find("img") is not None
         ]
-        # await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(
-        #     f"{result_sentence}\n\n{names}"
-        # )
+        await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(
+            f"{result_sentence}\n\n{names}"
+        )
         cursor.execute(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
             (url, new_article["title"], new_article["article_type"], "UDC_Information"),
@@ -341,7 +341,7 @@ class Parser:
         conn.commit()
         for image in images:
             deck_image_size = await Crawler.try_to_get_image_size(image)
-            # await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(image)
+            await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(image)
             cursor.execute(
                 "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
                 (
@@ -411,7 +411,7 @@ class Parser:
             ):
                 # 正方形画像は広告
                 continue
-            # await client.get_channel(DISCORD_NEWCARD_CHANNEL_ID).send(newcard_image)
+            await client.get_channel(DISCORD_NEWCARD_CHANNEL_ID).send(newcard_image)
             cursor.execute(
                 "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
                 (
@@ -474,7 +474,7 @@ class Parser:
             ):
                 # 正方形画像は広告
                 continue
-            # await client.get_channel(DISCORD_INFO_CHANNEL_ID).send(streamed_image)
+            await client.get_channel(DISCORD_INFO_CHANNEL_ID).send(streamed_image)
             cursor.execute(
                 "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
                 (
