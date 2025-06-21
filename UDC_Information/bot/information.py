@@ -41,10 +41,11 @@ async def judge_article_title(title: str):
     elif "結果" in title:
         if "など大会結果" in title:
             # https://supersolenoid.jp/blog-entry-42601.html
-            return "cs_result_many"
+            return "many_cs_results"
         elif "はっち" in title:
             # https://supersolenoid.jp/blog-entry-42779.html
-            return "cs_result_hatti"
+            # https://supersolenoid.jp/blog-entry-42860.html
+            return "hatti_cs_result"
         elif "DMGP" in title:
             # https://supersolenoid.jp/blog-entry-42560.html
             return "gp_result"
@@ -158,9 +159,9 @@ class Parser:
         await client.get_channel(DISCORD_INFO_CHANNEL_ID).send(ranking_img)
         return
 
-    async def parse_cs_result_many(new_article: dict):
+    async def parse_many_cs_results(new_article: dict):
         cursor.execute(
-            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'cs_result_many'"
+            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'many_cs_results'"
         )
         sent_urls = await clean_list(cursor.fetchall())
         url = new_article["url"]
@@ -178,9 +179,9 @@ class Parser:
         await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(url)
         return
 
-    async def parse_cs_result_hatti(new_article: dict):
+    async def parse_hatti_cs_result(new_article: dict):
         cursor.execute(
-            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'cs_result_hatti'"
+            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'hatti_cs_result'"
         )
         sent_urls = await clean_list(cursor.fetchall())
         url = new_article["url"]
@@ -220,6 +221,13 @@ class Parser:
                     for figure in figures
                     if figure.find("img") is not None
                 ]
+                if images == []:
+                    figures = soup.find_all("div", class_="wp-block-image")
+                    images = [
+                        figure.find("img").get("src")
+                        for figure in figures
+                        if figure.find("img") is not None
+                    ]
         await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(
             f"{result_sentence}\n\n{names}"
         )
@@ -494,10 +502,10 @@ async def main():
         match new_article["article_type"]:
             case "ranking":
                 await Parser.parse_ranking(new_article)
-            case "cs_result_many":
-                await Parser.parse_cs_result_many(new_article)
-            case "cs_result_hatti":
-                await Parser.parse_cs_result_hatti(new_article)
+            case "many_cs_results":
+                await Parser.parse_many_cs_results(new_article)
+            case "hatti_cs_result":
+                await Parser.parse_hatti_cs_result(new_article)
             case "gp_result":
                 await Parser.parse_gp_result(new_article)
             case "cs_result":
