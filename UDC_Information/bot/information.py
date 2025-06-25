@@ -42,7 +42,7 @@ async def judge_article_title(title: str):
         if "など大会結果" in title:
             # https://supersolenoid.jp/blog-entry-42601.html
             return "many_cs_results"
-        elif "はっち" in title:
+        elif "はっちCS" in title:
             # https://supersolenoid.jp/blog-entry-42779.html
             # https://supersolenoid.jp/blog-entry-42860.html
             return "hatti_cs_result"
