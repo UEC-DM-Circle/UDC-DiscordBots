@@ -35,7 +35,7 @@ class Logic:
                 lst[i] = lst[i][0]
         return lst
 
-    async def judge_article_title(title: str):
+    async def judge_category(title: str):
         if "入賞数ランキング" in title:
             return "ranking"
         elif "結果" in title:
@@ -60,11 +60,11 @@ class Logic:
         else:
             return "etc"
 
-    async def send_images(images: list, category: str, url: str, article_type: str):
+    async def send_images(images: list, url: str, category: str):
         for image in images:
             cursor.execute(
-                "SELECT url FROM sent_images WHERE service = 'UDC_Information'  AND category = %s",
-                (category,),
+                "SELECT url FROM sent_images WHERE service = 'UDC_Information'  AND original_url = %s",
+                (url,),
             )
             sent_images = await Logic.clean_list(cursor.fetchall())
             if image in sent_images:
@@ -76,7 +76,7 @@ class Logic:
                 (
                     image,
                     url,
-                    article_type,
+                    category,
                     "UDC_Information",
                     deck_image_size[0],
                     deck_image_size[1],
@@ -138,12 +138,12 @@ class Crawler:
         for i in range(len(articles)):
             url = articles[i]
             title = article_title[i].text
-            article_type = await Logic.judge_article_title(title)
+            category = await Logic.judge_category(title)
             new_articles.append(
                 {
                     "url": url,
                     "title": title,
-                    "article_type": article_type,
+                    "category": category,
                 }
             )
         return new_articles
@@ -166,7 +166,7 @@ class Parser:
         ranking_image_size = await Crawler.try_to_get_image_size(ranking_img)
         cursor.execute(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-            (url, new_article["title"], new_article["article_type"], "UDC_Information"),
+            (url, new_article["title"], new_article["category"], "UDC_Information"),
         )
         conn.commit()
         cursor.execute(
@@ -174,7 +174,7 @@ class Parser:
             (
                 ranking_img,
                 url,
-                new_article["article_type"],
+                new_article["category"],
                 "UDC_Information",
                 ranking_image_size[0],
                 ranking_image_size[1],
@@ -198,7 +198,7 @@ class Parser:
             return
         cursor.execute(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-            (url, new_article["title"], new_article["article_type"], "UDC_Information"),
+            (url, new_article["title"], new_article["category"], "UDC_Information"),
         )
         conn.commit()
         await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(url)
@@ -210,6 +210,7 @@ class Parser:
         )
         sent_urls = await Logic.clean_list(cursor.fetchall())
         url = new_article["url"]
+        category = new_article["category"]
         # パースは一回でOK
         if url in sent_urls:
             return
@@ -258,10 +259,10 @@ class Parser:
         )
         cursor.execute(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-            (url, new_article["title"], new_article["article_type"], "UDC_Information"),
+            (url, new_article["title"], category, "UDC_Information"),
         )
         conn.commit()
-        await Logic.send_images(images, "hatti_cs_result", url, new_article)
+        await Logic.send_images(images, url, category)
         return
 
     async def parse_gp_result(new_article: dict):
@@ -270,6 +271,7 @@ class Parser:
         )
         sent_urls = await Logic.clean_list(cursor.fetchall())
         url = new_article["url"]
+        category = new_article["category"]
         # パースは一回でOK
         if url in sent_urls:
             return
@@ -304,10 +306,10 @@ class Parser:
         )
         cursor.execute(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-            (url, new_article["title"], new_article["article_type"], "UDC_Information"),
+            (url, new_article["title"], category, "UDC_Information"),
         )
         conn.commit()
-        await Logic.send_images(images, "gp_result", url, new_article["article_type"])
+        await Logic.send_images(images, url, category)
         return
 
     async def parse_cs_result(new_article: dict):
@@ -316,6 +318,7 @@ class Parser:
         )
         sent_urls = await Logic.clean_list(cursor.fetchall())
         url = new_article["url"]
+        category = new_article["category"]
         # パースは一回でOK
         if url in sent_urls:
             return
@@ -340,10 +343,10 @@ class Parser:
         )
         cursor.execute(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-            (url, new_article["title"], new_article["article_type"], "UDC_Information"),
+            (url, new_article["title"], category, "UDC_Information"),
         )
         conn.commit()
-        await Logic.send_images(images, "cs_result", url, new_article["article_type"])
+        await Logic.send_images(images, url, category)
         return
 
     async def parse_new_card(new_article: dict):
@@ -362,7 +365,7 @@ class Parser:
                 (
                     url,
                     new_article["title"],
-                    new_article["article_type"],
+                    new_article["category"],
                     "UDC_Information",
                 ),
             )
@@ -382,7 +385,8 @@ class Parser:
             ]
         for newcard_image in newcard_images:
             cursor.execute(
-            "SELECT url FROM sent_images WHERE service = 'UDC_Information' AND category = 'new_card'"
+                "SELECT url FROM sent_images WHERE service = 'UDC_Information'  AND original_url = %s",
+                (url,),
             )
             sent_images = await Logic.clean_list(cursor.fetchall())
             if newcard_image in sent_images:
@@ -407,7 +411,7 @@ class Parser:
                 (
                     newcard_image,
                     url,
-                    new_article["article_type"],
+                    new_article["category"],
                     "UDC_Information",
                     newcard_image_size[0],
                     newcard_image_size[1],
@@ -432,7 +436,7 @@ class Parser:
                 (
                     url,
                     new_article["title"],
-                    new_article["article_type"],
+                    new_article["category"],
                     "UDC_Information",
                 ),
             )
@@ -445,7 +449,8 @@ class Parser:
         ]
         for streamed_image in streamed_images:
             cursor.execute(
-                "SELECT url FROM sent_images WHERE service = 'UDC_Information'  AND category = 'stream'"
+                "SELECT url FROM sent_images WHERE service = 'UDC_Information'  AND original_url = %s",
+                (url,),
             )
             sent_images = await Logic.clean_list(cursor.fetchall())
             if streamed_image in sent_images:
@@ -470,7 +475,7 @@ class Parser:
                 (
                     streamed_image,
                     url,
-                    new_article["article_type"],
+                    new_article["category"],
                     "UDC_Information",
                     streamed_image_size[0],
                     streamed_image_size[1],
@@ -482,7 +487,7 @@ class Parser:
 async def main():
     new_articles = await Crawler.get_new_articles()
     for new_article in new_articles:
-        match new_article["article_type"]:
+        match new_article["category"]:
             case "ranking":
                 await Parser.parse_ranking(new_article)
             case "many_cs_results":
