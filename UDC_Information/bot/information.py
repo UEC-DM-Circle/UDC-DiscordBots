@@ -35,7 +35,6 @@ class Logic:
                 lst[i] = lst[i][0]
         return lst
 
-
     async def judge_article_title(title: str):
         if "入賞数ランキング" in title:
             return "ranking"
@@ -60,7 +59,6 @@ class Logic:
             return "stream"
         else:
             return "etc"
-
 
     async def send_images(images: list, category: str, url: str, article_type: str):
         for image in images:
