@@ -28,37 +28,64 @@ conn = mysql.connector.connect(
 cursor = conn.cursor(buffered=True)
 
 
-async def clean_list(lst: list):
-    for i in range(len(lst)):
-        if type(lst[i]) is tuple:
-            lst[i] = lst[i][0]
-    return lst
+class Logic:
+    async def clean_list(lst: list):
+        for i in range(len(lst)):
+            if type(lst[i]) is tuple:
+                lst[i] = lst[i][0]
+        return lst
 
 
-async def judge_article_title(title: str):
-    if "入賞数ランキング" in title:
-        return "ranking"
-    elif "結果" in title:
-        if "など大会結果" in title:
-            # https://supersolenoid.jp/blog-entry-42601.html
-            return "many_cs_results"
-        elif "はっちCS" in title:
-            # https://supersolenoid.jp/blog-entry-42779.html
-            # https://supersolenoid.jp/blog-entry-42860.html
-            return "hatti_cs_result"
-        elif "DMGP" in title:
-            # https://supersolenoid.jp/blog-entry-42560.html
-            return "gp_result"
-        # https://supersolenoid.jp/blog-entry-42770.html
-        return "cs_result"
-    elif "が" in title and "公開" in title:
-        # https://supersolenoid.jp/blog-entry-42669.html
-        return "new_card"
-    elif "新情報まとめ" in title:
-        # https://supersolenoid.jp/blog-entry-42757.html
-        return "stream"
-    else:
-        return "etc"
+    async def judge_article_title(title: str):
+        if "入賞数ランキング" in title:
+            return "ranking"
+        elif "結果" in title:
+            if "など大会結果" in title:
+                # https://supersolenoid.jp/blog-entry-42601.html
+                return "many_cs_results"
+            elif "はっちCS" in title:
+                # https://supersolenoid.jp/blog-entry-42779.html
+                # https://supersolenoid.jp/blog-entry-42860.html
+                return "hatti_cs_result"
+            elif "DMGP" in title:
+                # https://supersolenoid.jp/blog-entry-42560.html
+                return "gp_result"
+            # https://supersolenoid.jp/blog-entry-42770.html
+            return "cs_result"
+        elif "が" in title and "公開" in title:
+            # https://supersolenoid.jp/blog-entry-42669.html
+            return "new_card"
+        elif "新情報まとめ" in title:
+            # https://supersolenoid.jp/blog-entry-42757.html
+            return "stream"
+        else:
+            return "etc"
+
+
+    async def send_images(images: list, category: str, url: str, article_type: str):
+        for image in images:
+            cursor.execute(
+                "SELECT url FROM sent_images WHERE service = 'UDC_Information'  AND category = %s",
+                (category,),
+            )
+            sent_images = await Logic.clean_list(cursor.fetchall())
+            if image in sent_images:
+                continue
+            deck_image_size = await Crawler.try_to_get_image_size(image)
+            await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(image)
+            cursor.execute(
+                "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
+                (
+                    image,
+                    url,
+                    article_type,
+                    "UDC_Information",
+                    deck_image_size[0],
+                    deck_image_size[1],
+                ),
+            )
+            conn.commit()
+        return
 
 
 class Crawler:
@@ -113,7 +140,7 @@ class Crawler:
         for i in range(len(articles)):
             url = articles[i]
             title = article_title[i].text
-            article_type = await judge_article_title(title)
+            article_type = await Logic.judge_article_title(title)
             new_articles.append(
                 {
                     "url": url,
@@ -129,7 +156,7 @@ class Parser:
         cursor.execute(
             "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'ranking'"
         )
-        sent_urls = await clean_list(cursor.fetchall())
+        sent_urls = await Logic.clean_list(cursor.fetchall())
         url = new_article["url"]
         # パースは一回でOK
         if url in sent_urls:
@@ -163,7 +190,7 @@ class Parser:
         cursor.execute(
             "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'many_cs_results'"
         )
-        sent_urls = await clean_list(cursor.fetchall())
+        sent_urls = await Logic.clean_list(cursor.fetchall())
         url = new_article["url"]
         # パースは一回でOK
         if url in sent_urls:
@@ -183,7 +210,7 @@ class Parser:
         cursor.execute(
             "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'hatti_cs_result'"
         )
-        sent_urls = await clean_list(cursor.fetchall())
+        sent_urls = await Logic.clean_list(cursor.fetchall())
         url = new_article["url"]
         # パースは一回でOK
         if url in sent_urls:
@@ -236,28 +263,14 @@ class Parser:
             (url, new_article["title"], new_article["article_type"], "UDC_Information"),
         )
         conn.commit()
-        for image in images:
-            deck_image_size = await Crawler.try_to_get_image_size(image)
-            await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(image)
-            cursor.execute(
-                "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
-                (
-                    image,
-                    result_url,
-                    new_article["article_type"],
-                    "UDC_Information",
-                    deck_image_size[0],
-                    deck_image_size[1],
-                ),
-            )
-            conn.commit()
+        await Logic.send_images(images, "hatti_cs_result", url, new_article)
         return
 
     async def parse_gp_result(new_article: dict):
         cursor.execute(
             "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'gp_result'"
         )
-        sent_urls = await clean_list(cursor.fetchall())
+        sent_urls = await Logic.clean_list(cursor.fetchall())
         url = new_article["url"]
         # パースは一回でOK
         if url in sent_urls:
@@ -296,28 +309,14 @@ class Parser:
             (url, new_article["title"], new_article["article_type"], "UDC_Information"),
         )
         conn.commit()
-        for image in images:
-            deck_image_size = await Crawler.try_to_get_image_size(image)
-            await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(image)
-            cursor.execute(
-                "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
-                (
-                    image,
-                    url,
-                    new_article["article_type"],
-                    "UDC_Information",
-                    deck_image_size[0],
-                    deck_image_size[1],
-                ),
-            )
-            conn.commit()
+        await Logic.send_images(images, "gp_result", url, new_article["article_type"])
         return
 
     async def parse_cs_result(new_article: dict):
         cursor.execute(
             "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'cs_result'"
         )
-        sent_urls = await clean_list(cursor.fetchall())
+        sent_urls = await Logic.clean_list(cursor.fetchall())
         url = new_article["url"]
         # パースは一回でOK
         if url in sent_urls:
@@ -346,21 +345,7 @@ class Parser:
             (url, new_article["title"], new_article["article_type"], "UDC_Information"),
         )
         conn.commit()
-        for image in images:
-            deck_image_size = await Crawler.try_to_get_image_size(image)
-            await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(image)
-            cursor.execute(
-                "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
-                (
-                    image,
-                    url,
-                    new_article["article_type"],
-                    "UDC_Information",
-                    deck_image_size[0],
-                    deck_image_size[1],
-                ),
-            )
-            conn.commit()
+        await Logic.send_images(images, "cs_result", url, new_article["article_type"])
         return
 
     async def parse_new_card(new_article: dict):
@@ -371,7 +356,7 @@ class Parser:
         cursor.execute(
             "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'new_card'"
         )
-        sent_urls = await clean_list(cursor.fetchall())
+        sent_urls = await Logic.clean_list(cursor.fetchall())
         # 1回だけ追加する
         if url not in sent_urls:
             cursor.execute(
@@ -397,11 +382,11 @@ class Parser:
                 for newcard_img in newcard_imgs
                 if newcard_img.get("src") is not None
             ]
-        cursor.execute(
-            "SELECT url FROM sent_images WHERE service = 'UDC_Information' AND category = 'new_card'"
-        )
-        sent_images = await clean_list(cursor.fetchall())
         for newcard_image in newcard_images:
+            cursor.execute(
+            "SELECT url FROM sent_images WHERE service = 'UDC_Information' AND category = 'new_card'"
+            )
+            sent_images = await Logic.clean_list(cursor.fetchall())
             if newcard_image in sent_images:
                 # すでに送信済みの画像はスキップ
                 continue
@@ -441,7 +426,7 @@ class Parser:
         cursor.execute(
             "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'stream'"
         )
-        sent_urls = await clean_list(cursor.fetchall())
+        sent_urls = await Logic.clean_list(cursor.fetchall())
         # 1回だけ追加する
         if url not in sent_urls:
             cursor.execute(
@@ -460,11 +445,11 @@ class Parser:
             for streamed_img in streamed_imgs
             if streamed_img.get("src") is not None
         ]
-        cursor.execute(
-            "SELECT url FROM sent_images WHERE service = 'UDC_Information'  AND category = 'stream'"
-        )
-        sent_images = await clean_list(cursor.fetchall())
         for streamed_image in streamed_images:
+            cursor.execute(
+                "SELECT url FROM sent_images WHERE service = 'UDC_Information'  AND category = 'stream'"
+            )
+            sent_images = await Logic.clean_list(cursor.fetchall())
             if streamed_image in sent_images:
                 # すでに送信済みの画像はスキップ
                 continue
