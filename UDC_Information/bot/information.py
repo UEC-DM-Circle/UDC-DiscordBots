@@ -60,21 +60,22 @@ class Logic:
         else:
             return "etc"
 
-    async def send_images(images: list, url: str, category: str):
-        for image in images:
+    async def send_result_images(result_images: list, url: str, category: str):
+        for result_image in result_images:
+            if not await Logic.judge_isimage(result_image):
+                continue
             cursor.execute(
                 "SELECT url FROM sent_images WHERE service = 'UDC_Information'  AND original_url = %s",
                 (url,),
             )
             sent_images = await Logic.clean_list(cursor.fetchall())
-            if image in sent_images:
+            if result_image in sent_images:
                 continue
-            deck_image_size = await Crawler.try_to_get_image_size(image)
-            await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(image)
+            deck_image_size = await Crawler.try_to_get_image_size(result_image)
             cursor.execute(
                 "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
                 (
-                    image,
+                    result_image,
                     url,
                     category,
                     "UDC_Information",
@@ -83,7 +84,55 @@ class Logic:
                 ),
             )
             conn.commit()
+            await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(result_image)
         return
+
+    async def send_new_info_images(new_info_images: list, url: str, category: str):
+        for new_info_image in new_info_images:
+            if not await Logic.judge_isimage(new_info_image):
+                continue
+            cursor.execute(
+                "SELECT url FROM sent_images WHERE service = 'UDC_Information'  AND original_url = %s",
+                (url,),
+            )
+            sent_images = await Logic.clean_list(cursor.fetchall())
+            if new_info_image in sent_images:
+                # すでに送信済みの画像はスキップ
+                continue
+            if "evwoh" in new_info_image:
+                # evwohが含まれている画像は広告
+                continue
+            newcard_image_size = await Crawler.try_to_get_image_size(new_info_image)
+            if newcard_image_size[0] >= 1500:
+                # 横長画像は広告
+                continue
+            if (
+                newcard_image_size[0] == newcard_image_size[1]
+                and newcard_image_size[0] != 0
+            ):
+                # 正方形画像は広告
+                continue
+            cursor.execute(
+                "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
+                (
+                    new_info_image,
+                    url,
+                    category,
+                    "UDC_Information",
+                    newcard_image_size[0],
+                    newcard_image_size[1],
+                ),
+            )
+            await client.get_channel(DISCORD_NEWCARD_CHANNEL_ID).send(new_info_image)
+            conn.commit()
+        return
+
+    async def judge_isimage(image: str):
+        if image.startswith("https") and (
+            ".jpg" in image or ".jpeg" in image or ".png" in image or ".gif" in image
+        ):
+            return True
+        return False
 
 
 class Crawler:
@@ -99,7 +148,7 @@ class Crawler:
             return "ERROR"
 
     async def try_to_get_image_size(url: str, retries: int = 5):
-        for attempt in range(retries):
+        for _ in range(retries):
             size = await Crawler.get_image_size(url)
             if size != "ERROR":
                 return size
@@ -117,7 +166,7 @@ class Crawler:
             return "ERROR"
 
     async def try_to_get_soup(url: str, retries: int = 5):
-        for attempt in range(retries):
+        for _ in range(retries):
             soup = await Crawler.get_soup(url)
             if soup != "ERROR":
                 return soup
@@ -254,6 +303,16 @@ class Parser:
                         for figure in figures
                         if figure.find("img") is not None
                     ]
+                if not await Logic.judge_isimage(images[0]):
+                    # チーム戦などの場合
+                    figures = soup.find_all(
+                        "li", class_="wp-block-jetpack-slideshow_slide"
+                    )
+                    images = [
+                        figure.find("img").get("src")
+                        for figure in figures
+                        if figure.find("img") is not None
+                    ]
         await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(
             f"{result_sentence}\n\n{names}"
         )
@@ -262,7 +321,7 @@ class Parser:
             (url, new_article["title"], category, "UDC_Information"),
         )
         conn.commit()
-        await Logic.send_images(images, url, category)
+        await Logic.send_result_images(images, url, category)
         return
 
     async def parse_gp_result(new_article: dict):
@@ -309,7 +368,7 @@ class Parser:
             (url, new_article["title"], category, "UDC_Information"),
         )
         conn.commit()
-        await Logic.send_images(images, url, category)
+        await Logic.send_result_images(images, url, category)
         return
 
     async def parse_cs_result(new_article: dict):
@@ -346,7 +405,7 @@ class Parser:
             (url, new_article["title"], category, "UDC_Information"),
         )
         conn.commit()
-        await Logic.send_images(images, url, category)
+        await Logic.send_result_images(images, url, category)
         return
 
     async def parse_new_card(new_article: dict):
@@ -378,46 +437,12 @@ class Parser:
         ]
         if newcard_images == []:
             newcard_imgs = soup.find("div", class_="EntryMore").find_all("img")
-            newcard_image = [
+            newcard_images = [
                 newcard_img.get("src")
                 for newcard_img in newcard_imgs
                 if newcard_img.get("src") is not None
             ]
-        for newcard_image in newcard_images:
-            cursor.execute(
-                "SELECT url FROM sent_images WHERE service = 'UDC_Information'  AND original_url = %s",
-                (url,),
-            )
-            sent_images = await Logic.clean_list(cursor.fetchall())
-            if newcard_image in sent_images:
-                # すでに送信済みの画像はスキップ
-                continue
-            if "evwoh" in newcard_image:
-                # evwohが含まれている画像は広告
-                continue
-            newcard_image_size = await Crawler.try_to_get_image_size(newcard_image)
-            if newcard_image_size[0] >= 1500:
-                # 横長画像は広告
-                continue
-            if (
-                newcard_image_size[0] == newcard_image_size[1]
-                and newcard_image_size[0] != 0
-            ):
-                # 正方形画像は広告
-                continue
-            await client.get_channel(DISCORD_NEWCARD_CHANNEL_ID).send(newcard_image)
-            cursor.execute(
-                "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
-                (
-                    newcard_image,
-                    url,
-                    new_article["category"],
-                    "UDC_Information",
-                    newcard_image_size[0],
-                    newcard_image_size[1],
-                ),
-            )
-            conn.commit()
+        await Logic.send_new_info_images(newcard_images, url, new_article["category"])
         return
 
     async def parse_stream(new_article: dict):
@@ -447,41 +472,8 @@ class Parser:
             for streamed_img in streamed_imgs
             if streamed_img.get("src") is not None
         ]
-        for streamed_image in streamed_images:
-            cursor.execute(
-                "SELECT url FROM sent_images WHERE service = 'UDC_Information'  AND original_url = %s",
-                (url,),
-            )
-            sent_images = await Logic.clean_list(cursor.fetchall())
-            if streamed_image in sent_images:
-                # すでに送信済みの画像はスキップ
-                continue
-            if "evwoh" in streamed_image:
-                # evwohが含まれている画像は広告
-                continue
-            streamed_image_size = await Crawler.try_to_get_image_size(streamed_image)
-            if streamed_image_size[0] >= 1500:
-                # 横長画像は広告
-                continue
-            if (
-                streamed_image_size[0] == streamed_image_size[1]
-                and streamed_image_size[0] != 0
-            ):
-                # 正方形画像は広告
-                continue
-            await client.get_channel(DISCORD_INFO_CHANNEL_ID).send(streamed_image)
-            cursor.execute(
-                "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
-                (
-                    streamed_image,
-                    url,
-                    new_article["category"],
-                    "UDC_Information",
-                    streamed_image_size[0],
-                    streamed_image_size[1],
-                ),
-            )
-            conn.commit()
+        await Logic.send_new_info_images(streamed_images, url, new_article["category"])
+        return
 
 
 async def main():
