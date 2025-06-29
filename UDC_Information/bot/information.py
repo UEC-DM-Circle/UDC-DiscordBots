@@ -45,6 +45,7 @@ class Logic:
             elif "はっちCS" in title:
                 # https://supersolenoid.jp/blog-entry-42779.html
                 # https://supersolenoid.jp/blog-entry-42860.html
+                # https://supersolenoid.jp/blog-entry-42944.html
                 return "hatti_cs_result"
             elif "DMGP" in title:
                 # https://supersolenoid.jp/blog-entry-42560.html
