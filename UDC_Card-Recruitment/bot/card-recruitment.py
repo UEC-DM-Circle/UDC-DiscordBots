@@ -8,20 +8,27 @@ from save_list import *
 # 初期設定
 TOKEN = os.getenv("TOKEN")
 intent = discord.Intents.default()
-intent.message_content= True
-client = commands.Bot(
-    command_prefix='-',
-    intents=intent
-)
+intent.message_content = True
+client = commands.Bot(command_prefix="-", intents=intent)
 channel_id = int(os.environ.get("CHANNEL_ID"))
 test_channel_id = int(os.environ.get("TEST_CHANNEL_ID"))
 log_channel_id = int(os.environ.get("LOG_CHANNEL_ID"))
+
 
 async def check_channel(ctx):
     if ctx.channel.id == channel_id or ctx.channel.id == test_channel_id:
         return True
     else:
         return False
+
+
+async def check_ctx(ctx):
+    if ctx.channel.id == channel_id or ctx.channel.id == test_channel_id:
+        return True
+    else:
+        await ctx.send("このコマンドは指定されたチャンネルでのみ使用できます。")
+        return False
+
 
 # コマンド
 @client.command()
@@ -41,6 +48,8 @@ async def guide(ctx):
             "-end [カード名]\n"
             "```"
         )
+
+
 @client.command()
 async def want(ctx, *args):
     if await check_channel(ctx):
@@ -65,21 +74,31 @@ async def want(ctx, *args):
                             recruitment[person][i]["active"] = True
                             if state:
                                 if buf != num:
-                                    await ctx.send(f"{person}さんの募集を更新しました：\n{want} ×{buf} → ×{num}")
+                                    await ctx.send(
+                                        f"{person}さんの募集を更新しました：\n{want} ×{buf} → ×{num}"
+                                    )
                                 else:
-                                    await ctx.send(f"{person}さんはすでにその内容の募集を行っています。")
+                                    await ctx.send(
+                                        f"{person}さんはすでにその内容の募集を行っています。"
+                                    )
                             else:
-                                ctx.send(f"{person}さんの募集を受け付けました：\n{want} ×{num}")
+                                ctx.send(
+                                    f"{person}さんの募集を受け付けました：\n{want} ×{num}"
+                                )
                             return
-                    recruitment[person].append({"want":want, "num":num, "active":True})
+                    recruitment[person].append(
+                        {"want": want, "num": num, "active": True}
+                    )
                 else:
-                    recruitment[person] = [{"want":want, "num":num, "active":True}]
+                    recruitment[person] = [{"want": want, "num": num, "active": True}]
                 await ctx.send(f"{person}さんの募集を受け付けました：\n{want} ×{num}")
                 return
         await ctx.send("募集追加方法に誤りがあります。")
+
+
 @client.command()
 async def check(ctx, *args):
-    text=""
+    text = ""
     if await check_channel(ctx):
         active_recruitment_number = 0
         for key in recruitment:
@@ -90,36 +109,58 @@ async def check(ctx, *args):
             text = "現在進行中の募集はありません。\n"
         else:
             if len(args) == 0:
-                buffa={}
+                buffa = {}
                 for key in recruitment:
                     for i in range(len(recruitment[key])):
                         if recruitment[key][i]["active"]:
                             if key in buffa:
-                                buffa[key].append([recruitment[key][i]["want"], recruitment[key][i]["num"]])
+                                buffa[key].append(
+                                    [
+                                        recruitment[key][i]["want"],
+                                        recruitment[key][i]["num"],
+                                    ]
+                                )
                             else:
-                                buffa[key] = [[recruitment[key][i]["want"], recruitment[key][i]["num"]]]
+                                buffa[key] = [
+                                    [
+                                        recruitment[key][i]["want"],
+                                        recruitment[key][i]["num"],
+                                    ]
+                                ]
                 for key in buffa:
                     text += f"{key}さんの募集一覧\n"
                     for i in range(len(buffa[key])):
                         text += f"・{buffa[key][i][0]} ×{buffa[key][i][1]}\n"
             elif len(args) == 1:
-                buffa={}
+                buffa = {}
                 for key in recruitment:
                     if key == args[0]:
                         for i in range(len(recruitment[key])):
                             if recruitment[key][i]["active"]:
                                 if key in buffa:
-                                    buffa[key].append([recruitment[key][i]["want"], recruitment[key][i]["num"]])
+                                    buffa[key].append(
+                                        [
+                                            recruitment[key][i]["want"],
+                                            recruitment[key][i]["num"],
+                                        ]
+                                    )
                                 else:
-                                    buffa[key] = [[recruitment[key][i]["want"], recruitment[key][i]["num"]]]
-                if buffa=={}:
+                                    buffa[key] = [
+                                        [
+                                            recruitment[key][i]["want"],
+                                            recruitment[key][i]["num"],
+                                        ]
+                                    ]
+                if buffa == {}:
                     for key in recruitment:
                         for i in range(len(recruitment[key])):
                             if recruitment[key][i]["want"] == args[0]:
                                 if recruitment[key][i]["active"]:
                                     foo = recruitment[key][i]["want"]
                                     if foo in buffa:
-                                        buffa[foo].append([key, recruitment[key][i]["num"]])
+                                        buffa[foo].append(
+                                            [key, recruitment[key][i]["num"]]
+                                        )
                                     else:
                                         buffa[foo] = [[key, recruitment[key][i]["num"]]]
                     for key in buffa:
@@ -131,17 +172,19 @@ async def check(ctx, *args):
                         text += f"{key}さんの募集一覧\n"
                         for i in range(len(buffa[key])):
                             text += f"・{buffa[key][i][0]} ×{buffa[key][i][1]}\n"
-                if buffa=={}:
+                if buffa == {}:
                     text = "該当する募集がありません。\n"
             else:
                 text += "募集確認方法に誤りがあります。\n"
         text = text[:-1]
         await ctx.send(text)
+
+
 @client.command()
 async def end(ctx, *args):
     if await check_channel(ctx):
         foo = len(args)
-        if foo in [1,2]:
+        if foo in [1, 2]:
             if foo == 1:
                 bar = ctx.author.display_name
                 card = args[0]
@@ -157,25 +200,31 @@ async def end(ctx, *args):
                         wanted["num"] = 0
                         flag = False
                 if flag:
-                    await ctx.send(f"{bar}さんは「{card}」 を募集していません。")
+                    await ctx.send(f"{bar}さんは『{card}』 を募集していません。")
                 else:
-                    await ctx.send(f"{bar}さんが「{card}」 の募集を終了しました。")
+                    await ctx.send(f"{bar}さんが『{card}』 の募集を終了しました。")
             else:
                 await ctx.send(f"{bar}さんが募集しているカードはありません。")
         else:
             await ctx.send("募集終了方法に誤りがあります。")
+
+
 @client.command()
 async def test(ctx):
     if await check_channel(ctx):
         await ctx.send("Card-Recruitment Bot is Working!")
+
+
 async def send_log():
     global recruitment
     buffa = {
         key: [
-            {'want': item["want"], 'num': item["num"], 'active': True}
-            for item in recruitment[key] if item["active"]
+            {"want": item["want"], "num": item["num"], "active": True}
+            for item in recruitment[key]
+            if item["active"]
         ]
-        for key in recruitment if any(item["active"] for item in recruitment[key])
+        for key in recruitment
+        if any(item["active"] for item in recruitment[key])
     }
     recruitment = buffa
     previous_json = {}
@@ -189,9 +238,11 @@ async def send_log():
             json.dump(recruitment, file, ensure_ascii=False)
         try:
             channel = client.get_channel(log_channel_id)
-            await channel.send(file = discord.File("recruitment.json"))
+            await channel.send(file=discord.File("recruitment.json"))
         except:
             print("Failed to send log file.")
+
+
 @client.event
 async def on_ready():
     await send_log()
@@ -200,5 +251,6 @@ async def on_ready():
     while True:
         await asyncio.sleep(150)
         await send_log()
+
 
 client.run(TOKEN)
