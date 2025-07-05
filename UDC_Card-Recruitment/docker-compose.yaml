@@ -2,7 +2,6 @@ version: '3.8'
 services:
   bot:
     build: .
-    restart: unless-stopped
     volumes:
       - ./bot:/usr/src/app:rw
     environment:
