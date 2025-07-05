@@ -40,18 +40,23 @@ async def guide(ctx):
             "-guide\n"
             "【募集追加】\n"
             "-want [カード名] [枚数]\n"
+            "-want [人] [カード名] [枚数]\n"
             "※既存のカード名を指定した場合枚数が更新されます。\n"
+            "　人名を指定しない場合は自分の名前が使用されます。\n"
+            "　半角を含むカード名を入力しないようにしてください。\n"
             "【募集確認】\n"
             "-check [カード名/人](個別確認)\n"
             "-check (引数なしで全体確認)\n"
             "【募集終了】\n"
             "-end [カード名]\n"
+            "-end [人] [カード名]\n"
             "```"
         )
 
 
 @client.command()
-async def want(ctx, *args):
+async def want(ctx, *, args):
+    args = args.split()
     if await check_channel(ctx):
         foo = len(args)
         if foo in [2, 3]:
@@ -82,7 +87,7 @@ async def want(ctx, *args):
                                         f"{person}さんはすでにその内容の募集を行っています。"
                                     )
                             else:
-                                ctx.send(
+                                await ctx.send(
                                     f"{person}さんの募集を受け付けました：\n{want} ×{num}"
                                 )
                             return
@@ -181,7 +186,8 @@ async def check(ctx, *args):
 
 
 @client.command()
-async def end(ctx, *args):
+async def end(ctx, *, args):
+    args = args.split()
     if await check_channel(ctx):
         foo = len(args)
         if foo in [1, 2]:
