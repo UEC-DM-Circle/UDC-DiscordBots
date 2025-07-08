@@ -52,7 +52,7 @@ class Logic:
                 return "gp_result"
             # https://supersolenoid.jp/blog-entry-42770.html
             return "cs_result"
-        elif "が" in title and "公開" in title:
+        elif "が公開" in title:
             # https://supersolenoid.jp/blog-entry-42669.html
             return "new_card"
         elif "新情報まとめ" in title:
@@ -93,8 +93,8 @@ class Logic:
             if not await Logic.judge_isimage(new_info_image):
                 continue
             cursor.execute(
-                "SELECT url FROM sent_images WHERE service = 'UDC_Information'  AND original_url = %s",
-                (url,),
+                "SELECT url FROM sent_images WHERE service = 'UDC_Information'  AND category = %s",
+                (category,),
             )
             sent_images = await Logic.clean_list(cursor.fetchall())
             if new_info_image in sent_images:
