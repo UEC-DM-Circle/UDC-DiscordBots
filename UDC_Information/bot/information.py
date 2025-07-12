@@ -6,7 +6,6 @@ from PIL import Image
 import mysql.connector
 import asyncio
 import os
-import time
 
 TOKEN = os.getenv("TOKEN")
 # 入賞数ランキング
@@ -93,8 +92,7 @@ class Logic:
             if not await Logic.judge_isimage(new_info_image):
                 continue
             cursor.execute(
-                "SELECT url FROM sent_images WHERE service = 'UDC_Information'  AND category = %s",
-                (category,),
+                "SELECT url FROM sent_images WHERE service = 'UDC_Information'  AND (category = 'new_card' OR category = 'stream')",
             )
             sent_images = await Logic.clean_list(cursor.fetchall())
             if new_info_image in sent_images:
