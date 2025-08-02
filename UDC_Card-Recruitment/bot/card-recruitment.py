@@ -1,9 +1,7 @@
 import os
-import json
-import asyncio
 import discord
 from discord.ext import commands
-from save_list import *
+import mysql.connector
 
 # 初期設定
 TOKEN = os.getenv("TOKEN")
@@ -12,7 +10,14 @@ intent.message_content = True
 client = commands.Bot(command_prefix="-", intents=intent)
 channel_id = int(os.environ.get("CHANNEL_ID"))
 test_channel_id = int(os.environ.get("TEST_CHANNEL_ID"))
-log_channel_id = int(os.environ.get("LOG_CHANNEL_ID"))
+
+conn = mysql.connector.connect(
+    host=os.getenv("DB_HOST"),
+    username=os.getenv("DB_USERNAME"),
+    password=os.getenv("DB_PASSWORD"),
+    database=os.getenv("DB_NAME"),
+)
+cursor = conn.cursor(buffered=True)
 
 
 async def check_channel(ctx):
@@ -30,7 +35,12 @@ async def check_ctx(ctx):
         return False
 
 
-# コマンド
+@client.command()
+async def test(ctx):
+    if await check_channel(ctx):
+        await ctx.send("Card-Recruitment Bot is Working!")
+
+
 @client.command()
 async def guide(ctx):
     if await check_channel(ctx):
@@ -42,14 +52,14 @@ async def guide(ctx):
             "-want [カード名] [枚数]\n"
             "-want [人] [カード名] [枚数]\n"
             "※既存のカード名を指定した場合枚数が更新されます。\n"
-            "　人名を指定しない場合は自分の名前が使用されます。\n"
-            "　半角を含むカード名を入力しないようにしてください。\n"
+            "　人を指定しない場合は自分の名前が使用されます。\n"
+            "　半角スペースを含むカード名を入力しないようにしてください。\n"
             "【募集確認】\n"
             "-check [カード名/人](個別確認)\n"
             "-check (引数なしで全体確認)\n"
             "【募集終了】\n"
-            "-end [カード名]\n"
-            "-end [人] [カード名]\n"
+            "-end [カード名/募集ID]\n"
+            "-end [人] [カード名/募集ID]\n"
             "```"
         )
 
@@ -58,205 +68,207 @@ async def guide(ctx):
 async def want(ctx, *, args):
     args = args.split()
     if await check_channel(ctx):
-        foo = len(args)
-        if foo in [2, 3]:
-            if foo == 2:
+        arg_length = len(args)
+        if arg_length in [2, 3]:
+            if arg_length == 2:
                 person = ctx.author.display_name
-                want = args[0]
+                card = args[0]
                 num = args[1]
             else:
                 person = args[0]
-                want = args[1]
+                card = args[1]
                 num = args[2]
             if num.isdecimal():
                 num = int(num)
-                if person in recruitment:
-                    for i in range(len(recruitment[person])):
-                        if recruitment[person][i]["want"] == want:
-                            buf = recruitment[person][i]["num"]
-                            recruitment[person][i]["num"] = num
-                            state = recruitment[person][i]["active"]
-                            recruitment[person][i]["active"] = True
-                            if state:
-                                if buf != num:
-                                    await ctx.send(
-                                        f"{person}さんの募集を更新しました：\n{want} ×{buf} → ×{num}"
-                                    )
-                                else:
-                                    await ctx.send(
-                                        f"{person}さんはすでにその内容の募集を行っています。"
-                                    )
-                            else:
-                                await ctx.send(
-                                    f"{person}さんの募集を受け付けました：\n{want} ×{num}"
-                                )
+                cursor.execute(
+                    "SELECT id, person, card, num, active FROM recruitments WHERE person = %s AND card = %s",
+                    (person, card),
+                )
+                recruitments = cursor.fetchall()
+                if recruitments != []:
+                    id = recruitments[0][0]
+                    current_num = recruitments[0][3]
+                    active = recruitments[0][4]
+                    if active == 1:
+                        if current_num == num:
+                            await ctx.send(
+                                f"{person}さんは既にその内容の募集(ID: {id})を行っています。"
+                            )
                             return
-                    recruitment[person].append(
-                        {"want": want, "num": num, "active": True}
-                    )
+                        else:
+                            cursor.execute(
+                                "UPDATE recruitments SET num = %s WHERE person = %s AND card = %s",
+                                (num, person, card),
+                            )
+                            conn.commit()
+                            await ctx.send(
+                                f"{person}さんの『{card}』の募集枚数を更新しました：\n×{current_num} → ×{num}"
+                            )
+                            return
+                    else:
+                        cursor.execute(
+                            "UPDATE recruitments SET active = 1, num = %s WHERE person = %s AND card = %s",
+                            (num, person, card),
+                        )
+                        conn.commit()
+                        await ctx.send(
+                            f"{person}さんの募集を受け付けました：\n{card} ×{num}"
+                        )
+                        return
                 else:
-                    recruitment[person] = [{"want": want, "num": num, "active": True}]
-                await ctx.send(f"{person}さんの募集を受け付けました：\n{want} ×{num}")
-                return
+                    # 新規追加
+                    cursor.execute(
+                        "INSERT INTO recruitments (person, card, num) VALUES (%s, %s, %s)",
+                        (person, card, num),
+                    )
+                    conn.commit()
+                    await ctx.send(
+                        f"{person}さんの募集を受け付けました：\n{card} ×{num}"
+                    )
+                    return
         await ctx.send("募集追加方法に誤りがあります。")
 
 
 @client.command()
 async def check(ctx, *args):
-    text = ""
     if await check_channel(ctx):
-        active_recruitment_number = 0
-        for key in recruitment:
-            for i in range(len(recruitment[key])):
-                if recruitment[key][i]["active"]:
-                    active_recruitment_number += 1
-        if active_recruitment_number == 0:
-            text = "現在進行中の募集はありません。\n"
+        cursor.execute(
+            "SELECT id, person, card, num FROM recruitments WHERE active = 1"
+        )
+        recruitments = cursor.fetchall()
+        if recruitments == []:
+            await ctx.send("現在進行中の募集はありません。")
+            return
         else:
-            if len(args) == 0:
-                buffa = {}
-                for key in recruitment:
-                    for i in range(len(recruitment[key])):
-                        if recruitment[key][i]["active"]:
-                            if key in buffa:
-                                buffa[key].append(
-                                    [
-                                        recruitment[key][i]["want"],
-                                        recruitment[key][i]["num"],
-                                    ]
-                                )
-                            else:
-                                buffa[key] = [
-                                    [
-                                        recruitment[key][i]["want"],
-                                        recruitment[key][i]["num"],
-                                    ]
-                                ]
-                for key in buffa:
-                    text += f"{key}さんの募集一覧\n"
-                    for i in range(len(buffa[key])):
-                        text += f"・{buffa[key][i][0]} ×{buffa[key][i][1]}\n"
-            elif len(args) == 1:
-                buffa = {}
-                for key in recruitment:
-                    if key == args[0]:
-                        for i in range(len(recruitment[key])):
-                            if recruitment[key][i]["active"]:
-                                if key in buffa:
-                                    buffa[key].append(
-                                        [
-                                            recruitment[key][i]["want"],
-                                            recruitment[key][i]["num"],
-                                        ]
-                                    )
-                                else:
-                                    buffa[key] = [
-                                        [
-                                            recruitment[key][i]["want"],
-                                            recruitment[key][i]["num"],
-                                        ]
-                                    ]
-                if buffa == {}:
-                    for key in recruitment:
-                        for i in range(len(recruitment[key])):
-                            if recruitment[key][i]["want"] == args[0]:
-                                if recruitment[key][i]["active"]:
-                                    foo = recruitment[key][i]["want"]
-                                    if foo in buffa:
-                                        buffa[foo].append(
-                                            [key, recruitment[key][i]["num"]]
-                                        )
-                                    else:
-                                        buffa[foo] = [[key, recruitment[key][i]["num"]]]
-                    for key in buffa:
-                        text += f"「{key}」への募集一覧\n"
-                        for i in range(len(buffa[key])):
-                            text += f"・{buffa[key][i][0]}：{buffa[key][i][1]}枚\n"
-                else:
-                    for key in buffa:
-                        text += f"{key}さんの募集一覧\n"
-                        for i in range(len(buffa[key])):
-                            text += f"・{buffa[key][i][0]} ×{buffa[key][i][1]}\n"
-                if buffa == {}:
-                    text = "該当する募集がありません。\n"
+            # 全募集を確認
+            text = ""
+            arg_length = len(args)
+            if arg_length == 0:
+                people = set()
+                for recruitment in recruitments:
+                    people.add(recruitment[1])
+                for person in people:
+                    buffa = []
+                    for recruitment in recruitments:
+                        if recruitment[1] == person:
+                            buffa.append(
+                                (recruitment[0], f"{recruitment[2]} ×{recruitment[3]}")
+                            )
+                    buffa = sorted(buffa, key=lambda x: x[0])
+                    text += f"{person}さんの募集一覧\n"
+                    for item in buffa:
+                        text += f"・{item[0]}：{item[1]}\n"
+                await ctx.send(text[:-1])
+                return
+            elif arg_length == 1:
+                # 特定の人の募集を確認
+                buffa = []
+                person = args[0]
+                for recruitment in recruitments:
+                    if recruitment[1] == person:
+                        buffa.append(
+                            (recruitment[0], f"{recruitment[2]} ×{recruitment[3]}")
+                        )
+                if buffa != []:
+                    buffa = sorted(buffa, key=lambda x: x[0])
+                    text += f"{person}さんの募集一覧\n"
+                    for item in buffa:
+                        text += f"・{item[0]}：{item[1]}\n"
+                    await ctx.send(text[:-1])
+                    return
+                # 特定のカードの募集を確認
+                card = args[0]
+                for recruitment in recruitments:
+                    if recruitment[2] == card:
+                        buffa.append(
+                            (recruitment[0], f"×{recruitment[3]} by. {recruitment[1]}")
+                        )
+                if buffa != []:
+                    buffa = sorted(buffa, key=lambda x: x[0])
+                    text += f"『{card}』への募集一覧\n"
+                    for item in buffa:
+                        text += f"・{item[0]}：{item[1]}\n"
+                    await ctx.send(text[:-1])
+                    return
+                await ctx.send("検索条件に該当する募集はありません。")
+                return
             else:
-                text += "募集確認方法に誤りがあります。\n"
-        text = text[:-1]
-        await ctx.send(text)
+                await ctx.send("募集確認方法に誤りがあります。")
+                return
 
 
 @client.command()
 async def end(ctx, *, args):
     args = args.split()
     if await check_channel(ctx):
-        foo = len(args)
-        if foo in [1, 2]:
-            if foo == 1:
-                bar = ctx.author.display_name
-                card = args[0]
-            else:
-                bar = args[0]
-                card = args[1]
-            if bar in recruitment:
-                argument = recruitment[bar]
-                flag = True
-                for wanted in argument:
-                    if wanted["want"] == card:
-                        wanted["active"] = False
-                        wanted["num"] = 0
-                        flag = False
-                if flag:
-                    await ctx.send(f"{bar}さんは『{card}』 を募集していません。")
+        arg_length = len(args)
+        is_id = False
+        if arg_length in [1, 2]:
+            if arg_length == 1:
+                name = ctx.author.display_name
+                if args[0].isdecimal():
+                    key = int(args[0])
+                    is_id = True
                 else:
-                    await ctx.send(f"{bar}さんが『{card}』 の募集を終了しました。")
+                    key = args[0]
             else:
-                await ctx.send(f"{bar}さんが募集しているカードはありません。")
+                name = args[0]
+                if args[1].isdecimal():
+                    key = int(args[1])
+                    is_id = True
+                else:
+                    key = args[1]
+            cursor.execute(
+                "SELECT id FROM recruitments WHERE person = %s AND active = 1",
+                (name,),
+            )
+            recruitments = cursor.fetchall()
+            if recruitments == []:
+                await ctx.send(f"{name}さんが募集しているカードはありません。")
+                return
+            if is_id:
+                cursor.execute(
+                    "SELECT id, card FROM recruitments WHERE person = %s AND id = %s",
+                    (name, key),
+                )
+                recruitment = cursor.fetchall()
+                if not recruitment:
+                    await ctx.send(
+                        f"{name}さんの募集の中に指定されたIDのものはありません。"
+                    )
+                    return
+                card = recruitment[0][1]
+                cursor.execute(
+                    "UPDATE recruitments SET active = 0, num = 0 WHERE id = %s",
+                    (key,),
+                )
+                conn.commit()
+                await ctx.send(
+                    f"{name}さんが『{card}』 の募集(ID: {key})を終了しました。"
+                )
+            else:
+                cursor.execute(
+                    "SELECT id, card FROM recruitments WHERE person = %s AND card = %s",
+                    (name, key),
+                )
+                recruitment = cursor.fetchall()
+                if not recruitment:
+                    await ctx.send(f"{name}さんは『{key}』の募集を行っていません。")
+                    return
+                cursor.execute(
+                    "UPDATE recruitments SET active = 0, num = 0 WHERE person = %s AND card = %s",
+                    (name, key),
+                )
+                conn.commit()
+                await ctx.send(f"{name}さんが『{key}』 の募集を終了しました。")
         else:
             await ctx.send("募集終了方法に誤りがあります。")
-
-
-@client.command()
-async def test(ctx):
-    if await check_channel(ctx):
-        await ctx.send("Card-Recruitment Bot is Working!")
-
-
-async def send_log():
-    global recruitment
-    buffa = {
-        key: [
-            {"want": item["want"], "num": item["num"], "active": True}
-            for item in recruitment[key]
-            if item["active"]
-        ]
-        for key in recruitment
-        if any(item["active"] for item in recruitment[key])
-    }
-    recruitment = buffa
-    previous_json = {}
-    with open("recruitment.json", "r", encoding="utf-8") as file:
-        try:
-            previous_json = json.load(file)
-        except:
-            pass
-    if recruitment != previous_json:
-        with open("recruitment.json", "w", encoding="utf-8") as file:
-            json.dump(recruitment, file, ensure_ascii=False)
-        try:
-            channel = client.get_channel(log_channel_id)
-            await channel.send(file=discord.File("recruitment.json"))
-        except:
-            print("Failed to send log file.")
+            return
 
 
 @client.event
 async def on_ready():
-    await send_log()
-    channel = client.get_channel(log_channel_id)
     print("Bot is ready!")
-    while True:
-        await asyncio.sleep(150)
-        await send_log()
 
 
 client.run(TOKEN)
