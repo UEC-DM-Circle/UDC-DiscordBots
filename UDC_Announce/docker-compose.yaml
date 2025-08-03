@@ -9,6 +9,10 @@ services:
       - TOKEN=${TOKEN}
       - CHANNEL_ID=${CHANNEL_ID}
       - TEST_CHANNEL_ID=${TEST_CHANNEL_ID}
+      - DB_HOST=${DB_HOST}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
       - TZ=Asia/Tokyo
     command: ["python3", "announce.py"]
     tty: true
