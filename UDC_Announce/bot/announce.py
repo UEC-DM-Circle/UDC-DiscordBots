@@ -33,13 +33,13 @@ async def test(ctx):
 async def announce_tomorrow():
     channel = client.get_channel(channel_id)
     cursor.execute(
-        "SELECT title, place, comment FROM tasks WHERE date = CURDATE() AND is_today = 0"
+        "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = 0"
     )
-    tasks = cursor.fetchall()
-    if tasks != []:
-        title = tasks[0][1]
-        place = tasks[0][2]
-        comment = tasks[0][3]
+    announcements = cursor.fetchall()
+    if announcements != []:
+        title = announcements[0][1]
+        place = announcements[0][2]
+        comment = announcements[0][3]
         text = f"@everyone\n\n明日は{title}です！\n場所：{place}"
         if comment:
             text += f"\n{comment}"
@@ -50,13 +50,13 @@ async def announce_tomorrow():
 async def announce_today():
     channel = client.get_channel(channel_id)
     cursor.execute(
-        "SELECT title, place, comment FROM tasks WHERE date = CURDATE() AND is_today = 1"
+        "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = 1"
     )
-    tasks = cursor.fetchall()
-    if tasks != []:
-        title = tasks[0][1]
-        place = tasks[0][2]
-        comment = tasks[0][3]
+    announcements = cursor.fetchall()
+    if announcements != []:
+        title = announcements[0][1]
+        place = announcements[0][2]
+        comment = announcements[0][3]
         text = f"@everyone\n\n今日は{title}です！\n場所：{place}"
         if comment:
             text += f"\n{comment}"
@@ -66,9 +66,9 @@ async def announce_today():
 
 async def check_task():
     test_channel = client.get_channel(test_channel_id)
-    cursor.execute("SELECT * FROM tasks WHERE date > CURDATE()")
-    tasks = cursor.fetchall()
-    if tasks == []:
+    cursor.execute("SELECT * FROM announcements WHERE date > CURDATE()")
+    announcements = cursor.fetchall()
+    if announcements == []:
         await test_channel.send("日程を登録してください！")
     return
 
