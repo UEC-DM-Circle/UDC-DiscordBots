@@ -275,7 +275,7 @@ async def on_ready():
         test = cursor.fetchall()
         if test:
             print("Connection Activated!")
-        asyncio.sleep(3600)
+        await asyncio.sleep(3600)
 
 
 client.run(TOKEN)
