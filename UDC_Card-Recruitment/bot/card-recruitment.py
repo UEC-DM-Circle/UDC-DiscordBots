@@ -2,6 +2,7 @@ import os
 import discord
 from discord.ext import commands
 import mysql.connector
+import asyncio
 
 # 初期設定
 TOKEN = os.getenv("TOKEN")
@@ -269,6 +270,12 @@ async def end(ctx, *, args):
 @client.event
 async def on_ready():
     print("Bot is ready!")
+    while True:
+        cursor.execute("SELECT 1 FROM recruitments WHERE active = 1")
+        test = cursor.fetchall()
+        if test:
+            print("Connection Activated!")
+        asyncio.sleep(3600)
 
 
 client.run(TOKEN)
