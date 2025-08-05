@@ -83,13 +83,23 @@ async def check_time():
             if 18 <= now.hour <= 23:
                 next_morning += datetime.timedelta(days=1)
             seconds_until = (next_morning - now).total_seconds()
+            wait_hours = seconds_until // 3600
+            seconds_until %= 3600
             await asyncio.sleep(seconds_until)
+            for _ in range(wait_hours):
+                await check_task()
+                await asyncio.sleep(3600)
             await announce_today()
             await check_task()
         now = datetime.datetime.now()
         next_evening = now.replace(hour=18, minute=0, second=0, microsecond=0)
         seconds_until = (next_evening - now).total_seconds()
+        wait_hours = seconds_until // 3600
+        seconds_until %= 3600
         await asyncio.sleep(seconds_until)
+        for _ in range(wait_hours):
+            await check_task()
+            await asyncio.sleep(3600)
         await announce_tomorrow()
         await check_task()
 
