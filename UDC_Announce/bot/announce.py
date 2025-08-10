@@ -37,9 +37,9 @@ async def announce_tomorrow():
     )
     announcements = cursor.fetchall()
     if announcements != []:
-        title = announcements[0][1]
-        place = announcements[0][2]
-        comment = announcements[0][3]
+        title = announcements[0][0]
+        place = announcements[0][1]
+        comment = announcements[0][2]
         text = f"@everyone\n\n明日は{title}です！\n場所：{place}"
         if comment:
             text += f"\n{comment}"
@@ -54,9 +54,9 @@ async def announce_today():
     )
     announcements = cursor.fetchall()
     if announcements != []:
-        title = announcements[0][1]
-        place = announcements[0][2]
-        comment = announcements[0][3]
+        title = announcements[0][0]
+        place = announcements[0][1]
+        comment = announcements[0][2]
         text = f"@everyone\n\n今日は{title}です！\n場所：{place}"
         if comment:
             text += f"\n{comment}"
@@ -83,7 +83,7 @@ async def check_time():
             if 18 <= now.hour <= 23:
                 next_morning += datetime.timedelta(days=1)
             seconds_until = (next_morning - now).total_seconds()
-            wait_hours = seconds_until // 3600
+            wait_hours = int(seconds_until // 3600)
             seconds_until %= 3600
             await asyncio.sleep(seconds_until)
             for _ in range(wait_hours):
@@ -94,7 +94,7 @@ async def check_time():
         now = datetime.datetime.now()
         next_evening = now.replace(hour=18, minute=0, second=0, microsecond=0)
         seconds_until = (next_evening - now).total_seconds()
-        wait_hours = seconds_until // 3600
+        wait_hours = int(seconds_until // 3600)
         seconds_until %= 3600
         await asyncio.sleep(seconds_until)
         for _ in range(wait_hours):
