@@ -273,8 +273,6 @@ async def on_ready():
     while True:
         cursor.execute("SELECT 1 FROM recruitments WHERE active = 1")
         test = cursor.fetchall()
-        if test:
-            print("Connection Activated!")
         await asyncio.sleep(3600)
 
 
