@@ -98,9 +98,6 @@ class Logic:
             if new_info_image in sent_images:
                 # すでに送信済みの画像はスキップ
                 continue
-            if "evwoh" in new_info_image:
-                # evwohが含まれている画像は広告
-                continue
             newcard_image_size = await Crawler.try_to_get_image_size(new_info_image)
             if newcard_image_size[0] >= 1500:
                 # 横長画像は広告
