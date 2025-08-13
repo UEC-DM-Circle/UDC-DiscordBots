@@ -5,9 +5,9 @@ services:
     restart: unless-stopped
     volumes:
       - ./bot:/usr/src/app:rw
+    env_file:
+      - .env
     environment:
-      - TOKEN=${TOKEN}
-      - CHANNEL_ID=${CHANNEL_ID}
-      - TEST_ID=${TEST_ID}
+      - TZ=Asia/Tokyo
     command: ["python3", "matching.py"]
     tty: true

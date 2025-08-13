@@ -4,8 +4,9 @@ services:
     build: .
     volumes:
       - ./bot:/usr/src/app:rw
+    env_file:
+      - .env
     environment:
-      - TOKEN=${TOKEN}
-      - CHANNEL_ID=${CHANNEL_ID}
+      - TZ=Asia/Tokyo
     command: ["python3", "data-mining.py"]
     tty: true

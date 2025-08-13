@@ -5,14 +5,9 @@ services:
     volumes:
       - ./bot:/usr/src/app:rw
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      - TOKEN=${TOKEN}
-      - DISCORD_INFO_CHANNEL_ID=${DISCORD_INFO_CHANNEL_ID}
-      - DISCORD_NEWCARD_CHANNEL_ID=${DISCORD_NEWCARD_CHANNEL_ID}
-      - DISCORD_RESULT_CHANNEL_ID=${DISCORD_RESULT_CHANNEL_ID}
-      - DB_HOST=${DB_HOST}
-      - DB_USERNAME=${DB_USERNAME}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME}
+      - TZ=Asia/Tokyo
     command: ["python3", "information.py"]
     tty: true
