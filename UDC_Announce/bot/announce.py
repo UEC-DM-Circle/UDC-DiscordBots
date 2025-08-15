@@ -14,63 +14,69 @@ client = commands.Bot(command_prefix="~", intents=intent)
 channel_id = int(os.environ.get("CHANNEL_ID"))
 test_channel_id = int(os.environ.get("TEST_CHANNEL_ID"))
 
-conn = mysql.connector.connect(
-    host=os.getenv("DB_HOST"),
-    username=os.getenv("DB_USERNAME"),
-    password=os.getenv("DB_PASSWORD"),
-    database=os.getenv("DB_NAME"),
-)
-cursor = conn.cursor(buffered=True)
+
+def get_connection():
+    return mysql.connector.connect(
+        host=os.getenv("DB_HOST"),
+        user=os.getenv("DB_USERNAME"),
+        password=os.getenv("DB_PASSWORD"),
+        database=os.getenv("DB_NAME"),
+    )
 
 
 @client.command()
 async def test(ctx):
-    if ctx.channel.id == channel_id or ctx.channel.id == test_channel_id:
+    if ctx.channel.id in (channel_id, test_channel_id):
         await ctx.send("Announcement Bot is Working!")
-    return
 
 
 async def announce_tomorrow():
     channel = client.get_channel(channel_id)
+    conn = get_connection()
+    cursor = conn.cursor(buffered=True)
     cursor.execute(
         "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = 0"
     )
     announcements = cursor.fetchall()
-    if announcements != []:
-        title = announcements[0][0]
-        place = announcements[0][1]
-        comment = announcements[0][2]
+    cursor.close()
+    conn.close()
+
+    if announcements:
+        title, place, comment = announcements[0]
         text = f"@everyone\n\n明日は{title}です！\n場所：{place}"
         if comment:
             text += f"\n{comment}"
         await channel.send(text)
-    return
 
 
 async def announce_today():
     channel = client.get_channel(channel_id)
+    conn = get_connection()
+    cursor = conn.cursor(buffered=True)
     cursor.execute(
         "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = 1"
     )
     announcements = cursor.fetchall()
-    if announcements != []:
-        title = announcements[0][0]
-        place = announcements[0][1]
-        comment = announcements[0][2]
+    cursor.close()
+    conn.close()
+    if announcements:
+        title, place, comment = announcements[0]
         text = f"@everyone\n\n今日は{title}です！\n場所：{place}"
         if comment:
             text += f"\n{comment}"
         await channel.send(text)
-    return
 
 
 async def check_task():
     test_channel = client.get_channel(test_channel_id)
+    conn = get_connection()
+    cursor = conn.cursor(buffered=True)
     cursor.execute("SELECT * FROM announcements WHERE date > CURDATE()")
     announcements = cursor.fetchall()
-    if announcements == []:
+    cursor.close()
+    conn.close()
+    if not announcements:
         await test_channel.send("日程を登録してください！")
-    return
 
 
 async def check_time():
