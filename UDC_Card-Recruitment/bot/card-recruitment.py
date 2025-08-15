@@ -2,7 +2,6 @@ import os
 import discord
 from discord.ext import commands
 import mysql.connector
-import asyncio
 
 # 初期設定
 TOKEN = os.getenv("TOKEN")
