@@ -28,28 +28,23 @@ class UseMySQL:
             database=os.getenv("DB_NAME"),
         )
 
-    async def run_select_sql(sql: str, params: tuple):
+    async def run_sql(sql: str, params: tuple):
         conn = UseMySQL.get_connection()
         cursor = conn.cursor(buffered=True)
         if params != ():
             cursor.execute(sql, params)
         else:
             cursor.execute(sql)
-        result = await Logic.clean_list(cursor.fetchall())
-        cursor.close()
-        conn.close()
-        return result
-
-    async def run_insert_or_update_sql(sql: str, params: tuple):
-        conn = UseMySQL.get_connection()
-        cursor = conn.cursor(buffered=True)
-        if params != ():
-            cursor.execute(sql, params)
+        if sql.strip().upper().startswith("SELECT"):
+            result = await Logic.clean_list(cursor.fetchall())
+            cursor.close()
+            conn.close()
+            return result
         else:
-            cursor.execute(sql)
-        conn.commit()
-        cursor.close()
-        conn.close()
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return
 
 
 class Logic:
@@ -89,14 +84,14 @@ class Logic:
         for result_image in result_images:
             if not await Logic.judge_isimage(result_image):
                 continue
-            sent_images = await UseMySQL.run_select_sql(
+            sent_images = await UseMySQL.run_sql(
                 "SELECT url FROM sent_images WHERE service = 'UDC_Information'  AND original_url = %s",
                 (url,),
             )
             if result_image in sent_images:
                 continue
             deck_image_size = await Crawler.try_to_get_image_size(result_image)
-            await UseMySQL.run_insert_or_update_sql(
+            await UseMySQL.run_sql(
                 "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
                 (
                     result_image,
@@ -114,7 +109,7 @@ class Logic:
         for new_info_image in new_info_images:
             if not await Logic.judge_isimage(new_info_image):
                 continue
-            sent_images = await UseMySQL.run_select_sql(
+            sent_images = await UseMySQL.run_sql(
                 "SELECT url FROM sent_images WHERE service = 'UDC_Information'  AND (category = 'new_card' OR category = 'stream')",
                 (),
             )
@@ -131,7 +126,7 @@ class Logic:
             ):
                 # 正方形画像は広告
                 continue
-            await UseMySQL.run_insert_or_update_sql(
+            await UseMySQL.run_sql(
                 "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
                 (
                     new_info_image,
@@ -218,7 +213,7 @@ class Crawler:
 
 class Parser:
     async def parse_ranking(new_article: dict):
-        sent_urls = await UseMySQL.run_select_sql(
+        sent_urls = await UseMySQL.run_sql(
             "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'ranking'",
             (),
         )
@@ -231,11 +226,11 @@ class Parser:
             return
         ranking_img = soup.find("div", class_="EntryBody").find("a").get("href")
         ranking_image_size = await Crawler.try_to_get_image_size(ranking_img)
-        await UseMySQL.run_insert_or_update_sql(
+        await UseMySQL.run_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
             (url, new_article["title"], new_article["category"], "UDC_Information"),
         )
-        await UseMySQL.run_insert_or_update_sql(
+        await UseMySQL.run_sql(
             "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
             (
                 ranking_img,
@@ -250,7 +245,7 @@ class Parser:
         return
 
     async def parse_many_cs_results(new_article: dict):
-        sent_urls = await UseMySQL.run_select_sql(
+        sent_urls = await UseMySQL.run_sql(
             "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'many_cs_results'",
             (),
         )
@@ -261,7 +256,7 @@ class Parser:
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
             return
-        await UseMySQL.run_insert_or_update_sql(
+        await UseMySQL.run_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
             (url, new_article["title"], new_article["category"], "UDC_Information"),
         )
@@ -269,7 +264,7 @@ class Parser:
         return
 
     async def parse_hatti_cs_result(new_article: dict):
-        sent_urls = await UseMySQL.run_select_sql(
+        sent_urls = await UseMySQL.run_sql(
             "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'hatti_cs_result'",
             (),
         )
@@ -331,7 +326,7 @@ class Parser:
         await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(
             f"{result_sentence}\n\n{names}"
         )
-        await UseMySQL.run_insert_or_update_sql(
+        await UseMySQL.run_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
             (url, new_article["title"], category, "UDC_Information"),
         )
@@ -339,7 +334,7 @@ class Parser:
         return
 
     async def parse_gp_result(new_article: dict):
-        sent_urls = await UseMySQL.run_select_sql(
+        sent_urls = await UseMySQL.run_sql(
             "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'gp_result'",
             (),
         )
@@ -377,7 +372,7 @@ class Parser:
         await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(
             f"{result_sentence}\n\n{names}\n\n{distribution}"
         )
-        await UseMySQL.run_insert_or_update_sql(
+        await UseMySQL.run_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
             (url, new_article["title"], category, "UDC_Information"),
         )
@@ -385,7 +380,7 @@ class Parser:
         return
 
     async def parse_cs_result(new_article: dict):
-        sent_urls = await UseMySQL.run_select_sql(
+        sent_urls = await UseMySQL.run_sql(
             "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'cs_result'",
             (),
         )
@@ -413,7 +408,7 @@ class Parser:
         await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(
             f"{result_sentence}\n\n{names}"
         )
-        await UseMySQL.run_insert_or_update_sql(
+        await UseMySQL.run_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
             (url, new_article["title"], category, "UDC_Information"),
         )
@@ -425,13 +420,13 @@ class Parser:
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
             return
-        sent_urls = await UseMySQL.run_select_sql(
+        sent_urls = await UseMySQL.run_sql(
             "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'new_card'",
             (),
         )
         # 1回だけ追加する
         if url not in sent_urls:
-            await UseMySQL.run_insert_or_update_sql(
+            await UseMySQL.run_sql(
                 "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
                 (
                     url,
@@ -461,13 +456,13 @@ class Parser:
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
             return
-        sent_urls = await UseMySQL.run_select_sql(
+        sent_urls = await UseMySQL.run_sql(
             "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'stream'",
             (),
         )
         # 1回だけ追加する
         if url not in sent_urls:
-            await UseMySQL.run_insert_or_update_sql(
+            await UseMySQL.run_sql(
                 "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
                 (
                     url,

@@ -12,13 +12,34 @@ client = commands.Bot(command_prefix="-", intents=intent)
 channel_id = int(os.environ.get("CHANNEL_ID"))
 test_channel_id = int(os.environ.get("TEST_CHANNEL_ID"))
 
-conn = mysql.connector.connect(
-    host=os.getenv("DB_HOST"),
-    username=os.getenv("DB_USERNAME"),
-    password=os.getenv("DB_PASSWORD"),
-    database=os.getenv("DB_NAME"),
-)
-cursor = conn.cursor(buffered=True)
+
+# MySQLの接続設定
+def get_connection():
+    return mysql.connector.connect(
+        host=os.getenv("DB_HOST"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        database=os.getenv("DB_NAME"),
+    )
+
+
+async def run_sql(sql: str, params: tuple):
+    conn = get_connection()
+    cursor = conn.cursor(buffered=True)
+    if params != ():
+        cursor.execute(sql, params)
+    else:
+        cursor.execute(sql)
+    if sql.strip().upper().startswith("SELECT"):
+        result = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return result
+    else:
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return
 
 
 async def check_channel(ctx):
@@ -81,11 +102,10 @@ async def want(ctx, *, args):
                 num = args[2]
             if num.isdecimal():
                 num = int(num)
-                cursor.execute(
+                recruitments = await run_sql(
                     "SELECT id, person, card, num, active FROM recruitments WHERE person = %s AND card = %s",
                     (person, card),
                 )
-                recruitments = cursor.fetchall()
                 if recruitments != []:
                     id = recruitments[0][0]
                     current_num = recruitments[0][3]
@@ -97,32 +117,29 @@ async def want(ctx, *, args):
                             )
                             return
                         else:
-                            cursor.execute(
+                            await run_sql(
                                 "UPDATE recruitments SET num = %s WHERE person = %s AND card = %s",
                                 (num, person, card),
                             )
-                            conn.commit()
                             await ctx.send(
                                 f"{person}さんの『{card}』の募集枚数を更新しました：\n×{current_num} → ×{num}"
                             )
                             return
                     else:
-                        cursor.execute(
+                        await run_sql(
                             "UPDATE recruitments SET active = 1, num = %s WHERE person = %s AND card = %s",
                             (num, person, card),
                         )
-                        conn.commit()
                         await ctx.send(
                             f"{person}さんの募集を受け付けました：\n{card} ×{num}"
                         )
                         return
                 else:
                     # 新規追加
-                    cursor.execute(
+                    await run_sql(
                         "INSERT INTO recruitments (person, card, num) VALUES (%s, %s, %s)",
                         (person, card, num),
                     )
-                    conn.commit()
                     await ctx.send(
                         f"{person}さんの募集を受け付けました：\n{card} ×{num}"
                     )
@@ -133,10 +150,10 @@ async def want(ctx, *, args):
 @client.command()
 async def check(ctx, *args):
     if await check_channel(ctx):
-        cursor.execute(
-            "SELECT id, person, card, num FROM recruitments WHERE active = 1"
+        recruitments = await run_sql(
+            "SELECT id, person, card, num FROM recruitments WHERE active = 1",
+            (),
         )
-        recruitments = cursor.fetchall()
         if recruitments == []:
             await ctx.send("現在進行中の募集はありません。")
             return
@@ -219,61 +236,47 @@ async def end(ctx, *, args):
                     is_id = True
                 else:
                     key = args[1]
-            cursor.execute(
+            recruitments = await run_sql(
                 "SELECT id FROM recruitments WHERE person = %s AND active = 1",
                 (name,),
             )
-            recruitments = cursor.fetchall()
             if recruitments == []:
                 await ctx.send(f"{name}さんが募集しているカードはありません。")
                 return
             if is_id:
-                cursor.execute(
+                recruitment = await run_sql(
                     "SELECT id, card FROM recruitments WHERE person = %s AND id = %s",
                     (name, key),
                 )
-                recruitment = cursor.fetchall()
                 if not recruitment:
                     await ctx.send(
                         f"{name}さんの募集の中に指定されたIDのものはありません。"
                     )
                     return
                 card = recruitment[0][1]
-                cursor.execute(
+                await run_sql(
                     "UPDATE recruitments SET active = 0, num = 0 WHERE id = %s",
                     (key,),
                 )
-                conn.commit()
                 await ctx.send(
                     f"{name}さんが『{card}』 の募集(ID: {key})を終了しました。"
                 )
             else:
-                cursor.execute(
+                recruitment = await run_sql(
                     "SELECT id, card FROM recruitments WHERE person = %s AND card = %s",
                     (name, key),
                 )
-                recruitment = cursor.fetchall()
                 if not recruitment:
                     await ctx.send(f"{name}さんは『{key}』の募集を行っていません。")
                     return
-                cursor.execute(
+                await run_sql(
                     "UPDATE recruitments SET active = 0, num = 0 WHERE person = %s AND card = %s",
                     (name, key),
                 )
-                conn.commit()
                 await ctx.send(f"{name}さんが『{key}』 の募集を終了しました。")
         else:
             await ctx.send("募集終了方法に誤りがあります。")
             return
-
-
-@client.event
-async def on_ready():
-    print("Bot is ready!")
-    while True:
-        cursor.execute("SELECT 1 FROM recruitments WHERE active = 1")
-        test = cursor.fetchall()
-        await asyncio.sleep(3600)
 
 
 client.run(TOKEN)
