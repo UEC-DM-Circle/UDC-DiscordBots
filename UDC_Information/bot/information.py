@@ -96,7 +96,7 @@ class Logic:
             if result_image in sent_images:
                 continue
             deck_image_size = await Crawler.try_to_get_image_size(result_image)
-            UseMySQL.run_insert_or_update_sql(
+            await UseMySQL.run_insert_or_update_sql(
                 "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
                 (
                     result_image,
