@@ -24,6 +24,16 @@ def get_connection():
     )
 
 
+async def run_select_sql(sql: str):
+    conn = get_connection()
+    cursor = conn.cursor(buffered=True)
+    cursor.execute(sql)
+    result = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return result
+
+
 @client.command()
 async def test(ctx):
     if ctx.channel.id in (channel_id, test_channel_id):
@@ -32,14 +42,9 @@ async def test(ctx):
 
 async def announce_tomorrow():
     channel = client.get_channel(channel_id)
-    conn = get_connection()
-    cursor = conn.cursor(buffered=True)
-    cursor.execute(
+    announcements = await run_select_sql(
         "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = 0"
     )
-    announcements = cursor.fetchall()
-    cursor.close()
-    conn.close()
     if announcements:
         title, place, comment = announcements[0]
         text = f"@everyone\n\n明日は{title}です！\n場所：{place}"
@@ -50,14 +55,9 @@ async def announce_tomorrow():
 
 async def announce_today():
     channel = client.get_channel(channel_id)
-    conn = get_connection()
-    cursor = conn.cursor(buffered=True)
-    cursor.execute(
+    announcements = await run_select_sql(
         "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = 1"
     )
-    announcements = cursor.fetchall()
-    cursor.close()
-    conn.close()
     if announcements:
         title, place, comment = announcements[0]
         text = f"@everyone\n\n今日は{title}です！\n場所：{place}"
@@ -68,12 +68,9 @@ async def announce_today():
 
 async def check_task():
     test_channel = client.get_channel(test_channel_id)
-    conn = get_connection()
-    cursor = conn.cursor(buffered=True)
-    cursor.execute("SELECT * FROM announcements WHERE date > CURDATE()")
-    announcements = cursor.fetchall()
-    cursor.close()
-    conn.close()
+    announcements = await run_select_sql(
+        "SELECT * FROM announcements WHERE date > CURDATE()"
+    )
     if not announcements:
         await test_channel.send("日程を登録してください！")
 
