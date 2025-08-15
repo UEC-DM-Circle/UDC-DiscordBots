@@ -18,13 +18,38 @@ intent = discord.Intents.default()
 intent.message_content = True
 client = commands.Bot(command_prefix="+", intents=intent)
 
-conn = mysql.connector.connect(
-    host=os.getenv("DB_HOST"),
-    username=os.getenv("DB_USERNAME"),
-    password=os.getenv("DB_PASSWORD"),
-    database=os.getenv("DB_NAME"),
-)
-cursor = conn.cursor(buffered=True)
+
+class UseMySQL:
+    def get_connection():
+        return mysql.connector.connect(
+            host=os.getenv("DB_HOST"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            database=os.getenv("DB_NAME"),
+        )
+
+    async def run_select_sql(sql: str, params: tuple):
+        conn = UseMySQL.get_connection()
+        cursor = conn.cursor(buffered=True)
+        if params != ():
+            cursor.execute(sql, params)
+        else:
+            cursor.execute(sql)
+        result = await Logic.clean_list(cursor.fetchall())
+        cursor.close()
+        conn.close()
+        return result
+
+    async def run_insert_or_update_sql(sql: str, params: tuple):
+        conn = UseMySQL.get_connection()
+        cursor = conn.cursor(buffered=True)
+        if params != ():
+            cursor.execute(sql, params)
+        else:
+            cursor.execute(sql)
+        conn.commit()
+        cursor.close()
+        conn.close()
 
 
 class Logic:
@@ -64,15 +89,14 @@ class Logic:
         for result_image in result_images:
             if not await Logic.judge_isimage(result_image):
                 continue
-            cursor.execute(
+            sent_images = await UseMySQL.run_select_sql(
                 "SELECT url FROM sent_images WHERE service = 'UDC_Information'  AND original_url = %s",
                 (url,),
             )
-            sent_images = await Logic.clean_list(cursor.fetchall())
             if result_image in sent_images:
                 continue
             deck_image_size = await Crawler.try_to_get_image_size(result_image)
-            cursor.execute(
+            UseMySQL.run_insert_or_update_sql(
                 "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
                 (
                     result_image,
@@ -83,7 +107,6 @@ class Logic:
                     deck_image_size[1],
                 ),
             )
-            conn.commit()
             await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(result_image)
         return
 
@@ -91,10 +114,10 @@ class Logic:
         for new_info_image in new_info_images:
             if not await Logic.judge_isimage(new_info_image):
                 continue
-            cursor.execute(
+            sent_images = await UseMySQL.run_select_sql(
                 "SELECT url FROM sent_images WHERE service = 'UDC_Information'  AND (category = 'new_card' OR category = 'stream')",
+                (),
             )
-            sent_images = await Logic.clean_list(cursor.fetchall())
             if new_info_image in sent_images:
                 # すでに送信済みの画像はスキップ
                 continue
@@ -108,7 +131,7 @@ class Logic:
             ):
                 # 正方形画像は広告
                 continue
-            cursor.execute(
+            await UseMySQL.run_insert_or_update_sql(
                 "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
                 (
                     new_info_image,
@@ -120,7 +143,6 @@ class Logic:
                 ),
             )
             await client.get_channel(DISCORD_NEWCARD_CHANNEL_ID).send(new_info_image)
-            conn.commit()
         return
 
     async def judge_isimage(image: str):
@@ -196,10 +218,10 @@ class Crawler:
 
 class Parser:
     async def parse_ranking(new_article: dict):
-        cursor.execute(
-            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'ranking'"
+        sent_urls = await UseMySQL.run_select_sql(
+            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'ranking'",
+            (),
         )
-        sent_urls = await Logic.clean_list(cursor.fetchall())
         url = new_article["url"]
         # パースは一回でOK
         if url in sent_urls:
@@ -209,12 +231,11 @@ class Parser:
             return
         ranking_img = soup.find("div", class_="EntryBody").find("a").get("href")
         ranking_image_size = await Crawler.try_to_get_image_size(ranking_img)
-        cursor.execute(
+        await UseMySQL.run_insert_or_update_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
             (url, new_article["title"], new_article["category"], "UDC_Information"),
         )
-        conn.commit()
-        cursor.execute(
+        await UseMySQL.run_insert_or_update_sql(
             "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
             (
                 ranking_img,
@@ -225,15 +246,14 @@ class Parser:
                 ranking_image_size[1],
             ),
         )
-        conn.commit()
         await client.get_channel(DISCORD_INFO_CHANNEL_ID).send(ranking_img)
         return
 
     async def parse_many_cs_results(new_article: dict):
-        cursor.execute(
-            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'many_cs_results'"
+        sent_urls = await UseMySQL.run_select_sql(
+            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'many_cs_results'",
+            (),
         )
-        sent_urls = await Logic.clean_list(cursor.fetchall())
         url = new_article["url"]
         # パースは一回でOK
         if url in sent_urls:
@@ -241,19 +261,18 @@ class Parser:
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
             return
-        cursor.execute(
+        await UseMySQL.run_insert_or_update_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
             (url, new_article["title"], new_article["category"], "UDC_Information"),
         )
-        conn.commit()
         await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(url)
         return
 
     async def parse_hatti_cs_result(new_article: dict):
-        cursor.execute(
-            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'hatti_cs_result'"
+        sent_urls = await UseMySQL.run_select_sql(
+            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'hatti_cs_result'",
+            (),
         )
-        sent_urls = await Logic.clean_list(cursor.fetchall())
         url = new_article["url"]
         category = new_article["category"]
         # パースは一回でOK
@@ -312,19 +331,18 @@ class Parser:
         await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(
             f"{result_sentence}\n\n{names}"
         )
-        cursor.execute(
+        await UseMySQL.run_insert_or_update_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
             (url, new_article["title"], category, "UDC_Information"),
         )
-        conn.commit()
         await Logic.send_result_images(images, url, category)
         return
 
     async def parse_gp_result(new_article: dict):
-        cursor.execute(
-            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'gp_result'"
+        sent_urls = await UseMySQL.run_select_sql(
+            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'gp_result'",
+            (),
         )
-        sent_urls = await Logic.clean_list(cursor.fetchall())
         url = new_article["url"]
         category = new_article["category"]
         # パースは一回でOK
@@ -359,19 +377,18 @@ class Parser:
         await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(
             f"{result_sentence}\n\n{names}\n\n{distribution}"
         )
-        cursor.execute(
+        await UseMySQL.run_insert_or_update_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
             (url, new_article["title"], category, "UDC_Information"),
         )
-        conn.commit()
         await Logic.send_result_images(images, url, category)
         return
 
     async def parse_cs_result(new_article: dict):
-        cursor.execute(
-            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'cs_result'"
+        sent_urls = await UseMySQL.run_select_sql(
+            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'cs_result'",
+            (),
         )
-        sent_urls = await Logic.clean_list(cursor.fetchall())
         url = new_article["url"]
         category = new_article["category"]
         # パースは一回でOK
@@ -396,11 +413,10 @@ class Parser:
         await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(
             f"{result_sentence}\n\n{names}"
         )
-        cursor.execute(
+        await UseMySQL.run_insert_or_update_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
             (url, new_article["title"], category, "UDC_Information"),
         )
-        conn.commit()
         await Logic.send_result_images(images, url, category)
         return
 
@@ -409,13 +425,13 @@ class Parser:
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
             return
-        cursor.execute(
-            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'new_card'"
+        sent_urls = await UseMySQL.run_select_sql(
+            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'new_card'",
+            (),
         )
-        sent_urls = await Logic.clean_list(cursor.fetchall())
         # 1回だけ追加する
         if url not in sent_urls:
-            cursor.execute(
+            await UseMySQL.run_insert_or_update_sql(
                 "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
                 (
                     url,
@@ -424,7 +440,6 @@ class Parser:
                     "UDC_Information",
                 ),
             )
-            conn.commit()
         newcard_imgs = soup.find_all("div", class_="card_image")
         newcard_images = [
             newcard_img.find("img").get("src")
@@ -446,13 +461,13 @@ class Parser:
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
             return
-        cursor.execute(
-            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'stream'"
+        sent_urls = await UseMySQL.run_select_sql(
+            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'stream'",
+            (),
         )
-        sent_urls = await Logic.clean_list(cursor.fetchall())
         # 1回だけ追加する
         if url not in sent_urls:
-            cursor.execute(
+            await UseMySQL.run_insert_or_update_sql(
                 "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
                 (
                     url,
@@ -461,7 +476,6 @@ class Parser:
                     "UDC_Information",
                 ),
             )
-            conn.commit()
         streamed_imgs = soup.find("div", class_="EntryMore").find_all("img")
         streamed_images = [
             streamed_img.get("src")
