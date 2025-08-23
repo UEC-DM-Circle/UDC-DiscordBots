@@ -6,6 +6,7 @@ from PIL import Image
 import mysql.connector
 import asyncio
 import os
+import traceback
 
 TOKEN = os.getenv("TOKEN")
 # 入賞数ランキング
@@ -511,12 +512,12 @@ async def test(ctx):
 
 @client.event
 async def on_ready():
-    try:
-        while True:
+    while True:
+        try:
             await main()
-            await asyncio.sleep(60)
-    except Exception as e:
-        print(f"Error: {e}")
-
+        except Exception as e:
+            print(f"Error: {e}")
+            traceback.print_exc()
+        await asyncio.sleep(60)
 
 client.run(TOKEN)
