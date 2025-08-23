@@ -4,6 +4,7 @@ import mysql.connector
 import os
 import datetime
 import asyncio
+import traceback
 
 TOKEN = os.getenv("TOKEN")
 intent = discord.Intents.default()
@@ -107,6 +108,7 @@ async def check_time():
             await check_task()
         except Exception as e:
             print(f"Error: {e}")
+            traceback.print_exc()
 
 
 @client.event

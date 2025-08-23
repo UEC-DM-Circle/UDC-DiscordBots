@@ -398,10 +398,13 @@ class Parser:
         for br in result_div.find_all("br"):
             br.replace_with("\n")
         result_sentence = result_div.text
-        names_div = divisions[1]
-        for br in names_div.find_all("br"):
-            br.replace_with("\n")
-        names = names_div.text
+        if len(divisions) < 2:
+            names = ""
+        else:
+            names_div = divisions[1]
+            for br in names_div.find_all("br"):
+                br.replace_with("\n")
+            names = names_div.text
         imgs = soup.find_all("div", class_="dm_deck_image")
         images = [
             img.find("img").get("src") for img in imgs if img.find("img") is not None
@@ -519,5 +522,6 @@ async def on_ready():
             print(f"Error: {e}")
             traceback.print_exc()
         await asyncio.sleep(60)
+
 
 client.run(TOKEN)
