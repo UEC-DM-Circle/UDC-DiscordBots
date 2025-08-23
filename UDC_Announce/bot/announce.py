@@ -77,33 +77,36 @@ async def check_task():
 
 async def check_time():
     while True:
-        now = datetime.datetime.now()
-        next_morning = now.replace(hour=6, minute=0, second=0, microsecond=0)
-        if 6 <= now.hour < 18:
-            pass
-        else:
-            if 18 <= now.hour <= 23:
-                next_morning += datetime.timedelta(days=1)
-            seconds_until = (next_morning - now).total_seconds()
+        try:
+            now = datetime.datetime.now()
+            next_morning = now.replace(hour=6, minute=0, second=0, microsecond=0)
+            if 6 <= now.hour < 18:
+                pass
+            else:
+                if 18 <= now.hour <= 23:
+                    next_morning += datetime.timedelta(days=1)
+                seconds_until = (next_morning - now).total_seconds()
+                wait_hours = int(seconds_until // 3600)
+                seconds_until %= 3600
+                await asyncio.sleep(seconds_until)
+                for _ in range(wait_hours):
+                    await check_task()
+                    await asyncio.sleep(3600)
+                await announce_today()
+                await check_task()
+            now = datetime.datetime.now()
+            next_evening = now.replace(hour=18, minute=0, second=0, microsecond=0)
+            seconds_until = (next_evening - now).total_seconds()
             wait_hours = int(seconds_until // 3600)
             seconds_until %= 3600
             await asyncio.sleep(seconds_until)
             for _ in range(wait_hours):
                 await check_task()
                 await asyncio.sleep(3600)
-            await announce_today()
+            await announce_tomorrow()
             await check_task()
-        now = datetime.datetime.now()
-        next_evening = now.replace(hour=18, minute=0, second=0, microsecond=0)
-        seconds_until = (next_evening - now).total_seconds()
-        wait_hours = int(seconds_until // 3600)
-        seconds_until %= 3600
-        await asyncio.sleep(seconds_until)
-        for _ in range(wait_hours):
-            await check_task()
-            await asyncio.sleep(3600)
-        await announce_tomorrow()
-        await check_task()
+        except Exception as e:
+            print(f"Error: {e}")
 
 
 @client.event

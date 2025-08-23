@@ -511,9 +511,12 @@ async def test(ctx):
 
 @client.event
 async def on_ready():
-    while True:
-        await main()
-        await asyncio.sleep(60)
+    try:
+        while True:
+            await main()
+            await asyncio.sleep(60)
+    except Exception as e:
+        print(f"Error: {e}")
 
 
 client.run(TOKEN)
