@@ -7,3 +7,13 @@ UDCで使うDiscordBotのリポジトリです。
 ## 管理者
 
 - Gitudon
+
+## 使用済みのコマンドプリフェックス
+
+- `~`：Announce
+- `-`：Card-Recruitment
+- `_`：Data-Mining
+- `+`：Information
+- `?`：Matiching
+- `!`：PDFmaker
+- `*`：Twitter
