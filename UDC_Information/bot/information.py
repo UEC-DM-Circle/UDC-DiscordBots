@@ -72,7 +72,7 @@ class Logic:
                 return "gp_result"
             # https://supersolenoid.jp/blog-entry-42770.html
             return "cs_result"
-        elif "が公開" in title or "多数公開" in title:
+        elif "が公開" in title or "多数公開" or "が判明" in title:
             # https://supersolenoid.jp/blog-entry-42669.html
             return "new_card"
         elif "新情報まとめ" in title:
