@@ -73,7 +73,7 @@ async def fetch_latest_tweets(max_results: int):
 
 async def main():
     get_tweet_number = 5
-    latest_tweets = await fetch_latest_tweets(get_tweet_number)
+    latest_tweets = reversed(await fetch_latest_tweets(get_tweet_number))
     if not latest_tweets:
         return
     for tweet in latest_tweets:
