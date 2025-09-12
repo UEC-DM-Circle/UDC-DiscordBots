@@ -35,7 +35,6 @@ async def run_sql(sql: str, params: tuple):
     else:
         cursor.execute(sql)
     if sql.strip().upper().startswith("SELECT"):
-        cursor.execute(sql)
         result = cursor.fetchall()
         cursor.close()
         conn.close()
@@ -48,6 +47,7 @@ async def run_sql(sql: str, params: tuple):
 
 
 async def fetch_latest_tweets(max_results: int):
+    retries = 5
     bearer_token = os.getenv("BEARER_TOKEN")
     user_id = os.getenv("TWITTER_USER_ID")
     if not user_id:
@@ -58,14 +58,16 @@ async def fetch_latest_tweets(max_results: int):
         "User-Agent": "v2UserTweetsPython",
     }
     params = {"max_results": max_results, "tweet.fields": "text,public_metrics"}
-    await asyncio.sleep(1)
-    response = requests.get(url, headers=headers, params=params)
-    if response.status_code == 200:
-        return response.json().get("data", [])
-    elif response.status_code == 429:
-        print(f"レート制限に到達しました。")
-    else:
-        print(f"エラー: {response.status_code}, {response.text}")
+    for attempt in range(retries):
+        await asyncio.sleep(1)
+        response = requests.get(url, headers=headers, params=params)
+        if response.status_code == 200:
+            return response.json().get("data", [])
+        elif response.status_code == 429:
+            print(f"レート制限に到達しました。")
+            await asyncio.sleep(200 * (attempt + 1))
+        else:
+            print(f"エラー: {response.status_code}, {response.text}")
     return []
 
 
@@ -88,7 +90,7 @@ async def main():
         channel = client.get_channel(channel_id)
         await channel.send(f"新しい投稿です！拡散よろしくお願いします！\n{tweet_url}")
         await run_sql(
-            "INSERT INTO sent_tweets (text, tweet_id, url, is_retweet) VALUES (%s, %s, %s, %s)",
+            "INSERT INTO tweets (text, tweet_id, url, is_retweet) VALUES (%s, %s, %s, %s)",
             (tweet_text, tweet_id, tweet_url, is_retweet),
         )
         await run_sql(
