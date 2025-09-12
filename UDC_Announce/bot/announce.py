@@ -35,6 +35,15 @@ async def run_select_sql(sql: str):
     return result
 
 
+async def run_update_sql(sql: str):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(sql)
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
 @client.command()
 async def test(ctx):
     if ctx.channel.id in (channel_id, test_channel_id):
@@ -44,7 +53,7 @@ async def test(ctx):
 async def announce_tomorrow():
     channel = client.get_channel(channel_id)
     announcements = await run_select_sql(
-        "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = 0"
+        "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = 0 AND is_annouced = 0"
     )
     if announcements:
         title, place, comment = announcements[0]
@@ -52,12 +61,15 @@ async def announce_tomorrow():
         if comment:
             text += f"\n{comment}"
         await channel.send(text)
+        await run_update_sql(
+            "UPDATE announcements SET is_annouced = 1 WHERE date = CURDATE() AND is_today = 0"
+        )
 
 
 async def announce_today():
     channel = client.get_channel(channel_id)
     announcements = await run_select_sql(
-        "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = 1"
+        "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = 1 AND is_annouced = 0"
     )
     if announcements:
         title, place, comment = announcements[0]
@@ -65,6 +77,9 @@ async def announce_today():
         if comment:
             text += f"\n{comment}"
         await channel.send(text)
+        await run_update_sql(
+            "UPDATE announcements SET is_annouced = 1 WHERE date = CURDATE() AND is_today = 1"
+        )
 
 
 async def check_task():
