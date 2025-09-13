@@ -326,7 +326,7 @@ class Parser:
                     ]
         else:
             # はっちCSが協賛している別のCSの場合
-            Parser.parse_cs_result(new_article)
+            await Parser.parse_cs_result(new_article)
             return
         await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(
             f"{result_sentence}\n\n{names}"
