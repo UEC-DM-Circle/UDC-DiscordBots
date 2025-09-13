@@ -324,6 +324,10 @@ class Parser:
                         for figure in figures
                         if figure.find("img") is not None
                     ]
+        else:
+            # はっちCSが協賛している別のCSの場合
+            Parser.parse_cs_result(new_article)
+            return
         await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(
             f"{result_sentence}\n\n{names}"
         )
