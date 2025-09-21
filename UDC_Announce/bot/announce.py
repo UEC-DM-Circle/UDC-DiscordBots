@@ -7,13 +7,12 @@ import asyncio
 import traceback
 
 TOKEN = os.getenv("TOKEN")
-intent = discord.Intents.default()
-intent.message_content = True
-
-client = commands.Bot(command_prefix="~", intents=intent)
-
 channel_id = int(os.environ.get("CHANNEL_ID"))
 test_channel_id = int(os.environ.get("TEST_CHANNEL_ID"))
+intent = discord.Intents.default()
+intent.message_content = True
+client = commands.Bot(command_prefix="~", intents=intent)
+task = None
 
 
 def get_connection():
@@ -92,35 +91,39 @@ async def check_task():
 
 
 async def check_time():
+    now = datetime.datetime.now()
+    next_morning = now.replace(hour=6, minute=0, second=0, microsecond=0)
+    if 6 <= now.hour < 18:
+        pass
+    else:
+        if 18 <= now.hour <= 23:
+            next_morning += datetime.timedelta(days=1)
+        seconds_until = (next_morning - now).total_seconds()
+        wait_hours = int(seconds_until // 3600)
+        seconds_until %= 3600
+        await asyncio.sleep(seconds_until)
+        for _ in range(wait_hours):
+            await check_task()
+            await asyncio.sleep(3600)
+        await announce_today()
+        await check_task()
+    now = datetime.datetime.now()
+    next_evening = now.replace(hour=18, minute=0, second=0, microsecond=0)
+    seconds_until = (next_evening - now).total_seconds()
+    wait_hours = int(seconds_until // 3600)
+    seconds_until %= 3600
+    await asyncio.sleep(seconds_until)
+    for _ in range(wait_hours):
+        await check_task()
+        await asyncio.sleep(3600)
+    await announce_tomorrow()
+    await check_task()
+
+
+async def main():
     while True:
         try:
-            now = datetime.datetime.now()
-            next_morning = now.replace(hour=6, minute=0, second=0, microsecond=0)
-            if 6 <= now.hour < 18:
-                pass
-            else:
-                if 18 <= now.hour <= 23:
-                    next_morning += datetime.timedelta(days=1)
-                seconds_until = (next_morning - now).total_seconds()
-                wait_hours = int(seconds_until // 3600)
-                seconds_until %= 3600
-                await asyncio.sleep(seconds_until)
-                for _ in range(wait_hours):
-                    await check_task()
-                    await asyncio.sleep(3600)
-                await announce_today()
-                await check_task()
-            now = datetime.datetime.now()
-            next_evening = now.replace(hour=18, minute=0, second=0, microsecond=0)
-            seconds_until = (next_evening - now).total_seconds()
-            wait_hours = int(seconds_until // 3600)
-            seconds_until %= 3600
-            await asyncio.sleep(seconds_until)
-            for _ in range(wait_hours):
-                await check_task()
-                await asyncio.sleep(3600)
-            await announce_tomorrow()
-            await check_task()
+            await check_time()
         except Exception as e:
             print(f"Error: {e}")
             traceback.print_exc()
@@ -128,8 +131,10 @@ async def check_time():
 
 @client.event
 async def on_ready():
+    global task
     print("Bot is ready!")
-    await check_time()
+    if task is None or task.done():
+        task = asyncio.create_task(main())
 
 
 client.run(TOKEN)

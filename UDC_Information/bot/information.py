@@ -18,6 +18,7 @@ DISCORD_RESULT_CHANNEL_ID = int(os.environ.get("DISCORD_RESULT_CHANNEL_ID"))
 intent = discord.Intents.default()
 intent.message_content = True
 client = commands.Bot(command_prefix="+", intents=intent)
+task = None
 
 
 class UseMySQL:
@@ -491,25 +492,31 @@ class Parser:
 
 
 async def main():
-    new_articles = await Crawler.get_new_articles()
-    for new_article in new_articles:
-        match new_article["category"]:
-            case "ranking":
-                await Parser.parse_ranking(new_article)
-            case "many_cs_results":
-                await Parser.parse_many_cs_results(new_article)
-            case "hatti_cs_result":
-                await Parser.parse_hatti_cs_result(new_article)
-            case "gp_result":
-                await Parser.parse_gp_result(new_article)
-            case "cs_result":
-                await Parser.parse_cs_result(new_article)
-            case "new_card":
-                await Parser.parse_new_card(new_article)
-            case "stream":
-                await Parser.parse_stream(new_article)
-            case "etc":
-                pass
+    while True:
+        try:
+            new_articles = await Crawler.get_new_articles()
+            for new_article in new_articles:
+                match new_article["category"]:
+                    case "ranking":
+                        await Parser.parse_ranking(new_article)
+                    case "many_cs_results":
+                        await Parser.parse_many_cs_results(new_article)
+                    case "hatti_cs_result":
+                        await Parser.parse_hatti_cs_result(new_article)
+                    case "gp_result":
+                        await Parser.parse_gp_result(new_article)
+                    case "cs_result":
+                        await Parser.parse_cs_result(new_article)
+                    case "new_card":
+                        await Parser.parse_new_card(new_article)
+                    case "stream":
+                        await Parser.parse_stream(new_article)
+                    case "etc":
+                        pass
+        except Exception as e:
+            print(f"Error: {e}")
+            traceback.print_exc()
+        await asyncio.sleep(60)
 
 
 @client.command()
@@ -520,13 +527,10 @@ async def test(ctx):
 
 @client.event
 async def on_ready():
-    while True:
-        try:
-            await main()
-        except Exception as e:
-            print(f"Error: {e}")
-            traceback.print_exc()
-        await asyncio.sleep(60)
+    global task
+    print("Bot is ready!")
+    if task is None or task.done():
+        task = asyncio.create_task(main())
 
 
 client.run(TOKEN)
