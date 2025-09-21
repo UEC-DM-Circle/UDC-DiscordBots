@@ -12,6 +12,7 @@ intent.message_content = True
 client = commands.Bot(command_prefix="*", intents=intent)
 channel_id = int(os.environ.get("CHANNEL_ID"))
 user_name = os.getenv("TWITTER_USER_NAME")
+task = None
 
 
 def is_correct_channel(ctx):
@@ -73,37 +74,44 @@ async def fetch_latest_tweets(max_results: int):
 
 async def main():
     get_tweet_number = 5
-    latest_tweets = reversed(await fetch_latest_tweets(get_tweet_number))
-    if not latest_tweets:
-        return
-    for tweet in latest_tweets:
-        public_metrics = tweet["public_metrics"]
-        tweet_text = tweet["text"]
-        tweet_id = tweet["id"]
-        tweet_url = f"https://x.com/{user_name}/status/{tweet_id}"
-        is_retweet = tweet_text.startswith("RT @")
-        existing = await run_sql(
-            "SELECT id FROM tweets WHERE tweet_id = %s", (tweet_id,)
-        )
-        if existing:
-            continue
-        channel = client.get_channel(channel_id)
-        await channel.send(f"新しい投稿です！拡散よろしくお願いします！\n{tweet_url}")
-        await run_sql(
-            "INSERT INTO tweets (text, tweet_id, url, is_retweet) VALUES (%s, %s, %s, %s)",
-            (tweet_text, tweet_id, tweet_url, is_retweet),
-        )
-        await run_sql(
-            "INSERT INTO public_metrics (tweet_id, retweet_count, reply_count, like_count, quote_count) VALUES (%s, %s, %s, %s, %s)",
-            (
-                tweet_id,
-                public_metrics["retweet_count"],
-                public_metrics["reply_count"],
-                public_metrics["like_count"],
-                public_metrics["quote_count"],
-            ),
-        )
-    return
+    while True:
+        try:
+            latest_tweets = reversed(await fetch_latest_tweets(get_tweet_number))
+            if not latest_tweets:
+                return
+            for tweet in latest_tweets:
+                public_metrics = tweet["public_metrics"]
+                tweet_text = tweet["text"]
+                tweet_id = tweet["id"]
+                tweet_url = f"https://x.com/{user_name}/status/{tweet_id}"
+                is_retweet = tweet_text.startswith("RT @")
+                existing = await run_sql(
+                    "SELECT id FROM tweets WHERE tweet_id = %s", (tweet_id,)
+                )
+                if existing:
+                    continue
+                channel = client.get_channel(channel_id)
+                await channel.send(
+                    f"新しい投稿です！拡散よろしくお願いします！\n{tweet_url}"
+                )
+                await run_sql(
+                    "INSERT INTO tweets (text, tweet_id, url, is_retweet) VALUES (%s, %s, %s, %s)",
+                    (tweet_text, tweet_id, tweet_url, is_retweet),
+                )
+                await run_sql(
+                    "INSERT INTO public_metrics (tweet_id, retweet_count, reply_count, like_count, quote_count) VALUES (%s, %s, %s, %s, %s)",
+                    (
+                        tweet_id,
+                        public_metrics["retweet_count"],
+                        public_metrics["reply_count"],
+                        public_metrics["like_count"],
+                        public_metrics["quote_count"],
+                    ),
+                )
+        except Exception as e:
+            print(f"Error: {e}")
+            traceback.print_exc()
+        await asyncio.sleep(1000)
 
 
 @client.event
@@ -114,14 +122,10 @@ async def test(ctx):
 
 @client.event
 async def on_ready():
+    global task
     print("Bot is ready!")
-    while True:
-        try:
-            await main()
-        except Exception as e:
-            print(f"Error: {e}")
-            traceback.print_exc()
-        await asyncio.sleep(1000)
+    if task is None or task.done():
+        task = asyncio.create_task(main())
 
 
 client.run(TOKEN)
