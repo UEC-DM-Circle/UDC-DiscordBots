@@ -315,8 +315,8 @@ class Parser:
                         for figure in figures
                         if figure.find("img") is not None
                     ]
-                if not await Logic.judge_isimage(images[0]):
-                    # チーム戦などの場合
+                # チーム戦などの場合
+                if images == []:
                     figures = soup.find_all(
                         "li", class_="wp-block-jetpack-slideshow_slide"
                     )
@@ -325,6 +325,16 @@ class Parser:
                         for figure in figures
                         if figure.find("img") is not None
                     ]
+                else:
+                    if not await Logic.judge_isimage(images[0]):
+                        figures = soup.find_all(
+                            "li", class_="wp-block-jetpack-slideshow_slide"
+                        )
+                        images = [
+                            figure.find("img").get("src")
+                            for figure in figures
+                            if figure.find("img") is not None
+                        ]
         else:
             # はっちCSが協賛している別のCSの場合
             new_article["category"] = "cs_result"
