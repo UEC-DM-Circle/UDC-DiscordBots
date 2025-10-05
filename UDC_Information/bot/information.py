@@ -455,19 +455,22 @@ class Parser:
                     "UDC_Information",
                 ),
             )
-        newcard_imgs = soup.find_all("div", class_="card_image")
-        newcard_images = [
-            newcard_img.find("img").get("src")
-            for newcard_img in newcard_imgs
-            if newcard_img.find("img") is not None
-        ]
+        newcard_img_divs = soup.find_all("div", class_="card_image")
+        newcard_images = []
+        for newcard_img_div in newcard_img_divs:
+            img_tags = newcard_img_div.find_all("img")
+            for img_tag in img_tags:
+                img_src = img_tag.get("src")
+                if img_src:
+                    newcard_images.append(img_src)
         if newcard_images == []:
-            newcard_imgs = soup.find("div", class_="EntryMore").find_all("img")
+            newcard_img_divs = soup.find("div", class_="EntryMore").find_all("img")
             newcard_images = [
                 newcard_img.get("src")
-                for newcard_img in newcard_imgs
+                for newcard_img in newcard_img_divs
                 if newcard_img.get("src") is not None
             ]
+        newcard_images = list(set(newcard_images))
         await Logic.send_new_info_images(newcard_images, url, new_article["category"])
         return
 
