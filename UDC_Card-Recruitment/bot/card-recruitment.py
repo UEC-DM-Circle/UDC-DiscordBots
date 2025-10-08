@@ -101,12 +101,22 @@ async def want(ctx, *, args):
                 num = args[2]
             if num.isdecimal():
                 num = int(num)
-                recruitments = await run_sql(
-                    "SELECT id, person, card, num, active FROM recruitments WHERE person = %s AND card = %s",
-                    (person, card),
-                )
+                use_id_flag = False
+                if card.isdecimal():
+                    use_id_flag = True
+                    card = int(card)
+                    recruitments = await run_sql(
+                        "SELECT id, person, card, num, active FROM recruitments WHERE person = %s AND id = %s",
+                        (person, card),
+                    )
+                else:
+                    recruitments = await run_sql(
+                        "SELECT id, person, card, num, active FROM recruitments WHERE person = %s AND card = %s",
+                        (person, card),
+                    )
                 if recruitments != []:
                     id = recruitments[0][0]
+                    card_name = recruitments[0][2]
                     current_num = recruitments[0][3]
                     active = recruitments[0][4]
                     if active == 1:
@@ -116,12 +126,18 @@ async def want(ctx, *, args):
                             )
                             return
                         else:
-                            await run_sql(
-                                "UPDATE recruitments SET num = %s WHERE person = %s AND card = %s",
-                                (num, person, card),
-                            )
+                            if use_id_flag:
+                                await run_sql(
+                                    "UPDATE recruitments SET num = %s WHERE person = %s AND id = %s",
+                                    (num, person, card),
+                                )
+                            else:
+                                await run_sql(
+                                    "UPDATE recruitments SET num = %s WHERE person = %s AND card = %s",
+                                    (num, person, card),
+                                )
                             await ctx.send(
-                                f"{person}さんの『{card}』の募集枚数を更新しました：\n×{current_num} → ×{num}"
+                                f"{person}さんの『{card_name}』の募集枚数を更新しました：\n×{current_num} → ×{num}"
                             )
                             return
                     else:
