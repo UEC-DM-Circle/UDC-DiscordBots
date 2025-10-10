@@ -119,9 +119,10 @@ class Logic:
                 # すでに送信済みの画像はスキップ
                 continue
             newcard_image_size = await Crawler.try_to_get_image_size(new_info_image)
-            # if newcard_image_size[0] >= 1500:
-            #     # 横長画像は広告
-            #     continue
+            if category == "stream":
+                if newcard_image_size[0] >= 1500:
+                    # 横長画像は広告
+                    continue
             if (
                 newcard_image_size[0] == newcard_image_size[1]
                 and newcard_image_size[0] != 0
