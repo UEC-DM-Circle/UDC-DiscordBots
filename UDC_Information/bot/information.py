@@ -75,7 +75,8 @@ class Logic:
             return "cs_result"
         elif "が公開" in title or "多数公開" in title or "が判明" in title:
             # https://supersolenoid.jp/blog-entry-42669.html
-            return "new_card"
+            if "よくある質問" not in title:
+                return "new_card"
         elif "新情報まとめ" in title:
             # https://supersolenoid.jp/blog-entry-42757.html
             return "stream"
