@@ -377,10 +377,12 @@ class Parser:
         for br in names_div.find_all("br"):
             br.replace_with("\n")
         names = names_div.text
-        distribution_div = divisions[2]
-        for br in distribution_div.find_all("br"):
-            br.replace_with("\n")
-        distribution = distribution_div.text
+        distribution = ""
+        if len(divisions) > 2:
+            distribution_div = divisions[2]
+            for br in distribution_div.find_all("br"):
+                br.replace_with("\n")
+            distribution = distribution_div.text
         imgs = soup.find_all("div", class_="dm_deck_image")
         images = [
             img.find("img").get("src") for img in imgs if img.find("img") is not None
