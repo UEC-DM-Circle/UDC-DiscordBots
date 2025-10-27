@@ -366,7 +366,7 @@ class Parser:
         if soup == "FAILED":
             return
         divisions = soup.find_all("div", class_="caption_white")
-        if len(divisions) < 3:
+        if len(divisions) < 2:
             # 記事が完成していない
             return
         result_div = divisions[0]
