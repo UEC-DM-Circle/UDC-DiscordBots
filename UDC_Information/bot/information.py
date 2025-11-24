@@ -9,6 +9,8 @@ import os
 import traceback
 
 TOKEN = os.getenv("TOKEN")
+# クロール対象ページ
+target_url = "https://supersolenoid.jp/blog-category-12.html"
 # 入賞数ランキング
 DISCORD_INFO_CHANNEL_ID = int(os.environ.get("DISCORD_INFO_CHANNEL_ID"))
 # 新カード
@@ -191,7 +193,7 @@ class Crawler:
 
     async def get_new_articles():
         soup = await Crawler.try_to_get_soup(
-            "https://supersolenoid.jp/blog-category-12.html"
+            target_url
         )
         if soup == "FAILED":
             return []
