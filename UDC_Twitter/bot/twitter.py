@@ -47,6 +47,15 @@ async def run_sql(sql: str, params: tuple):
         return
 
 
+def make_dummy_public_metrics():
+    return {
+        "retweet_count": -1,
+        "reply_count": -1,
+        "like_count": -1,
+        "quote_count": -1,
+    }
+
+
 async def fetch_latest_tweets(max_results: int):
     retries = 5
     bearer_token = os.getenv("BEARER_TOKEN")
@@ -58,7 +67,8 @@ async def fetch_latest_tweets(max_results: int):
         "Authorization": f"Bearer {bearer_token}",
         "User-Agent": "v2UserTweetsPython",
     }
-    params = {"max_results": max_results, "tweet.fields": "text,public_metrics"}
+    # params = {"max_results": max_results, "tweet.fields": "text,public_metrics"}
+    params = {"max_results": max_results, "tweet.fields": "text"}
     for attempt in range(retries):
         await asyncio.sleep(1)
         response = requests.get(url, headers=headers, params=params)
@@ -80,7 +90,9 @@ async def main():
             if not latest_tweets:
                 return
             for tweet in latest_tweets:
-                public_metrics = tweet["public_metrics"]
+                public_metrics = tweet.get(
+                    "public_metrics", make_dummy_public_metrics()
+                )
                 tweet_text = tweet["text"]
                 tweet_id = tweet["id"]
                 tweet_url = f"https://x.com/{user_name}/status/{tweet_id}"
