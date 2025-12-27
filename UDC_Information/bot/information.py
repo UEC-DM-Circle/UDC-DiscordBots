@@ -1,3 +1,6 @@
+import io
+import os
+import traceback
 import discord
 from discord.ext import commands
 import requests
@@ -5,8 +8,8 @@ from bs4 import BeautifulSoup
 from PIL import Image
 import mysql.connector
 import asyncio
-import os
-import traceback
+import aiohttp
+import aiomysql
 
 TOKEN = os.getenv("TOKEN")
 # クロール対象ページ
@@ -24,67 +27,74 @@ task = None
 
 
 class UseMySQL:
-    def get_connection():
-        return mysql.connector.connect(
-            host=os.getenv("DB_HOST"),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            database=os.getenv("DB_NAME"),
-        )
+    pool: aiomysql.Pool | None = None
 
-    async def run_sql(sql: str, params: tuple):
-        conn = UseMySQL.get_connection()
-        cursor = conn.cursor(buffered=True)
-        if params != ():
-            cursor.execute(sql, params)
-        else:
-            cursor.execute(sql)
-        if sql.strip().upper().startswith("SELECT"):
-            result = await Logic.clean_list(cursor.fetchall())
-            cursor.close()
-            conn.close()
-            return result
-        else:
-            conn.commit()
-            cursor.close()
-            conn.close()
-            return
+    @classmethod
+    async def init_pool(cls):
+        if cls.pool is None:
+            cls.pool = await aiomysql.create_pool(
+                host=os.getenv("DB_HOST"),
+                user=os.getenv("DB_USER"),
+                password=os.getenv("DB_PASSWORD"),
+                db=os.getenv("DB_NAME"),
+                autocommit=True,
+                minsize=1,
+                maxsize=5,
+            )
+
+    @classmethod
+    async def close_pool(cls):
+        if cls.pool:
+            cls.pool.close()
+            await cls.pool.wait_closed()
+            cls.pool = None
+
+    @classmethod
+    async def run_sql(cls, sql: str, params: tuple = ()):
+        async with cls.pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, params)
+                if sql.strip().upper().startswith("SELECT"):
+                    rows = await cur.fetchall()
+                    return [r[0] if isinstance(r, tuple) else r for r in rows]
 
 
 class Logic:
+    @staticmethod
     async def clean_list(lst: list):
         for i in range(len(lst)):
             if type(lst[i]) is tuple:
                 lst[i] = lst[i][0]
         return lst
 
+    @staticmethod
     async def judge_category(title: str):
         if "入賞数ランキング" in title:
             return "ranking"
-        elif "結果" in title:
+        if "結果" in title:
             if "など大会結果" in title:
                 # https://supersolenoid.jp/blog-entry-42601.html
                 return "many_cs_results"
-            elif "はっちCS" in title:
+            if "はっちCS" in title:
                 # https://supersolenoid.jp/blog-entry-42779.html
                 # https://supersolenoid.jp/blog-entry-42860.html
                 # https://supersolenoid.jp/blog-entry-42944.html
                 return "hatti_cs_result"
-            elif "DMGP" in title:
+            if "DMGP" in title:
                 # https://supersolenoid.jp/blog-entry-42560.html
                 return "gp_result"
             # https://supersolenoid.jp/blog-entry-42770.html
             return "cs_result"
-        elif "が公開" in title or "多数公開" in title or "が判明" in title:
+        if any(x in title for x in ("が公開", "多数公開", "が判明")):
             # https://supersolenoid.jp/blog-entry-42669.html
             if "よくある質問" not in title:
                 return "new_card"
-        elif "新情報まとめ" in title:
+        if "新情報まとめ" in title:
             # https://supersolenoid.jp/blog-entry-42757.html
             return "stream"
-        else:
-            return "etc"
+        return "etc"
 
+    @staticmethod
     async def send_result_images(result_images: list, url: str, category: str):
         for result_image in result_images:
             if not await Logic.judge_isimage(result_image):
@@ -110,6 +120,7 @@ class Logic:
             await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(result_image)
         return
 
+    @staticmethod
     async def send_new_info_images(new_info_images: list, url: str, category: str):
         for new_info_image in new_info_images:
             if not await Logic.judge_isimage(new_info_image):
@@ -146,78 +157,88 @@ class Logic:
             await client.get_channel(DISCORD_NEWCARD_CHANNEL_ID).send(new_info_image)
         return
 
-    async def judge_isimage(image: str):
-        if image.startswith("https") and (
-            ".jpg" in image or ".jpeg" in image or ".png" in image or ".gif" in image
-        ):
-            return True
-        return False
+    @staticmethod
+    async def judge_isimage(url: str):
+        return url.startswith("https") and any(
+            ext in url for ext in (".jpg", ".jpeg", ".png", ".gif")
+        )
 
 
 class Crawler:
-    async def get_image_size(url: str):
+    session: aiohttp.ClientSession | None = None
+
+    @classmethod
+    async def init_session(cls):
+        if cls.session is None:
+            timeout = aiohttp.ClientTimeout(total=30)
+            cls.session = aiohttp.ClientSession(timeout=timeout)
+
+    @classmethod
+    async def close_session(cls):
+        if cls.session:
+            await cls.session.close()
+            cls.session = None
+
+    @classmethod
+    async def get_image_size(cls, url: str):
         try:
-            await asyncio.sleep(1)
-            response = requests.get(url, stream=True).raw
-            image = Image.open(response)
-            image.verify()
-            width, height = image.size
-            return (width, height)
-        except:
+            async with cls.session.get(url) as resp:
+                if resp.status != 200:
+                    return "ERROR"
+                data = await resp.read()
+                image = Image.open(io.BytesIO(data))
+                image.verify()
+                return image.size
+        except Exception:
             return "ERROR"
 
-    async def try_to_get_image_size(url: str, retries: int = 5):
+    @classmethod
+    async def try_to_get_image_size(cls, url: str, retries: int = 5):
         for _ in range(retries):
-            size = await Crawler.get_image_size(url)
+            size = await cls.get_image_size(url)
             if size != "ERROR":
                 return size
         return (0, 0)  # サイズが見つからない場合は(0, 0)を返す
 
-    async def get_soup(url: str):
+    @classmethod
+    async def get_soup(cls, url: str):
         try:
-            await asyncio.sleep(1)
-            response = requests.get(url)
-            if response.status_code == 200:
-                return BeautifulSoup(response.text, "html.parser")
-            else:
-                return "ERROR"
-        except:
+            async with cls.session.get(url) as resp:
+                if resp.status != 200:
+                    return "ERROR"
+                text = await resp.text()
+                return BeautifulSoup(text, "html.parser")
+        except Exception:
             return "ERROR"
 
-    async def try_to_get_soup(url: str, retries: int = 5):
+    @classmethod
+    async def try_to_get_soup(cls, url: str, retries: int = 5):
         for _ in range(retries):
-            soup = await Crawler.get_soup(url)
+            soup = await cls.get_soup(url)
             if soup != "ERROR":
                 return soup
         return "FAILED"
 
-    async def get_new_articles():
-        soup = await Crawler.try_to_get_soup(
-            target_url
-        )
+    @classmethod
+    async def get_new_articles(cls):
+        soup = await cls.try_to_get_soup(target_url)
         if soup == "FAILED":
             return []
-        article = soup.find_all("div", class_="EntryTitle")
-        articles = []
-        for a in article:
-            articles.append(a.find("a").get("href"))
-        article_title = soup.find_all("div", class_="EntryTitle")
+        titles = soup.find_all("div", class_="EntryTitle")
         new_articles = []
-        for i in range(len(articles)):
-            url = articles[i]
-            title = article_title[i].text
+        for div in titles:
+            a = div.find("a")
+            if not a:
+                continue
+            url = a.get("href")
+            title = div.text
             category = await Logic.judge_category(title)
-            new_articles.append(
-                {
-                    "url": url,
-                    "title": title,
-                    "category": category,
-                }
-            )
+            new_articles.append({"url": url, "title": title, "category": category})
         return new_articles
 
 
 class Parser:
+    @staticmethod
     async def parse_ranking(new_article: dict):
         sent_urls = await UseMySQL.run_sql(
             "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'ranking'",
@@ -250,6 +271,7 @@ class Parser:
         await client.get_channel(DISCORD_INFO_CHANNEL_ID).send(ranking_img)
         return
 
+    @staticmethod
     async def parse_many_cs_results(new_article: dict):
         sent_urls = await UseMySQL.run_sql(
             "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'many_cs_results'",
@@ -269,6 +291,7 @@ class Parser:
         await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(url)
         return
 
+    @staticmethod
     async def parse_hatti_cs_result(new_article: dict):
         sent_urls = await UseMySQL.run_sql(
             "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'hatti_cs_result'",
@@ -354,6 +377,7 @@ class Parser:
         await Logic.send_result_images(images, url, category)
         return
 
+    @staticmethod
     async def parse_gp_result(new_article: dict):
         sent_urls = await UseMySQL.run_sql(
             "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'gp_result'",
@@ -402,6 +426,7 @@ class Parser:
         await Logic.send_result_images(images, url, category)
         return
 
+    @staticmethod
     async def parse_cs_result(new_article: dict):
         sent_urls = await UseMySQL.run_sql(
             "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'cs_result'",
@@ -441,6 +466,7 @@ class Parser:
         await Logic.send_result_images(images, url, category)
         return
 
+    @staticmethod
     async def parse_new_card(new_article: dict):
         url = new_article["url"]
         soup = await Crawler.try_to_get_soup(url)
@@ -547,6 +573,8 @@ async def test(ctx):
 @client.event
 async def on_ready():
     global task
+    await Crawler.init_session()
+    await UseMySQL.init_pool()
     print("Bot is ready!")
     if task is None or task.done():
         task = asyncio.create_task(main())
