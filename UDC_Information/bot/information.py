@@ -3,10 +3,8 @@ import os
 import traceback
 import discord
 from discord.ext import commands
-import requests
 from bs4 import BeautifulSoup
 from PIL import Image
-import mysql.connector
 import asyncio
 import aiohttp
 import aiomysql
