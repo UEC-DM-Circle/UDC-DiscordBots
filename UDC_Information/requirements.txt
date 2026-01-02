@@ -1,9 +1,6 @@
 py-cord
 discord.py
-google-api-python-client
 beautifulsoup4
-mysql-connector-python
 pillow
 aiohttp
 aiomysql
-requests
