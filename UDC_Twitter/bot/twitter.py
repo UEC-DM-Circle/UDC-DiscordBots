@@ -1,10 +1,10 @@
+import os
+import asyncio
+import traceback
 import discord
 from discord.ext import commands
-import mysql.connector
-import requests
-import asyncio
-import os
-import traceback
+import aiohttp
+import aiomysql
 
 TOKEN = os.getenv("TOKEN")
 intent = discord.Intents.default()
