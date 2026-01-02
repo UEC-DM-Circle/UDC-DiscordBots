@@ -324,6 +324,17 @@ class Parser:
             if "https://hattics.jp" in relate_url:
                 result_url = relate_url
                 break
+        if result_url == "":
+            blockquote_divs = soup.find_all("blockquote")
+            for blockquote_div in blockquote_divs:
+                a_tags = blockquote_div.find_all("a")
+                for a_tag in a_tags:
+                    href = a_tag.get("href")
+                    if href and "https://t.co" in href:
+                        result_url = href
+                        break
+                if result_url != "":
+                    break
         if result_url != "":
             soup = await Crawler.try_to_get_soup(result_url)
             if soup != "FAILED":
