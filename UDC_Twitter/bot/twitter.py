@@ -89,14 +89,14 @@ class Crawler:
         for attempt in range(retries):
             await asyncio.sleep(1)
             response = await cls.session.get(url, headers=headers, params=params)
-            if response.status_code == 200:
+            if response.status == 200:
                 return (await response.json()).get("data", [])
-            elif response.status_code == 429:
+            elif response.status == 429:
                 print(f"レート制限に到達しました。")
                 await asyncio.sleep(200 * (attempt + 1))
             else:
                 print(
-                    f"ツイートの取得に失敗: {response.status_code}, {await response.text()}"
+                    f"ツイートの取得に失敗: {response.status}, {await response.text()}"
                 )
         return []
 
