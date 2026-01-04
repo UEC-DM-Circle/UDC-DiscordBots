@@ -161,8 +161,8 @@ async def test(ctx):
 @client.event
 async def on_ready():
     global task
-    await Crawler.init_session()
     await UseMySQL.init_pool()
+    await Crawler.init_session()
     print("Bot is ready!")
     if task is None or task.done():
         task = asyncio.create_task(main())

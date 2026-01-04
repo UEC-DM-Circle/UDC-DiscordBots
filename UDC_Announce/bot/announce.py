@@ -39,7 +39,7 @@ class UseMySQL:
             cls.pool = None
 
     @classmethod
-    async def run_sql(cls, sql: str, params: tuple = ()):
+    async def run_sql(cls, sql: str, params: tuple = ()) -> list | None:
         async with cls.pool.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(sql, params)

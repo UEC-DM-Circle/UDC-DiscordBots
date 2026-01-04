@@ -48,7 +48,7 @@ class UseMySQL:
             cls.pool = None
 
     @classmethod
-    async def run_sql(cls, sql: str, params: tuple = ()) -> list:
+    async def run_sql(cls, sql: str, params: tuple = ()) -> list | None:
         async with cls.pool.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(sql, params)
@@ -156,7 +156,7 @@ class Logic:
         return
 
     @staticmethod
-    async def judge_isimage(url: str):
+    async def judge_isimage(url: str) -> bool:
         return url.startswith("https") and any(
             ext in url for ext in (".jpg", ".jpeg", ".png", ".gif")
         )
