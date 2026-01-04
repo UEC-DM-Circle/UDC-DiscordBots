@@ -48,7 +48,7 @@ class UseMySQL:
             cls.pool = None
 
     @classmethod
-    async def run_sql(cls, sql: str, params: tuple = ()):
+    async def run_sql(cls, sql: str, params: tuple = ()) -> list:
         async with cls.pool.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(sql, params)
@@ -59,14 +59,14 @@ class UseMySQL:
 
 class Logic:
     @staticmethod
-    async def clean_list(lst: list):
+    async def clean_list(lst: list) -> list:
         for i in range(len(lst)):
             if type(lst[i]) is tuple:
                 lst[i] = lst[i][0]
         return lst
 
     @staticmethod
-    async def judge_category(title: str):
+    async def judge_category(title: str) -> str:
         if "入賞数ランキング" in title:
             return "ranking"
         if "結果" in title:
@@ -178,8 +178,9 @@ class Crawler:
             cls.session = None
 
     @classmethod
-    async def get_image_size(cls, url: str):
+    async def get_image_size(cls, url: str) -> tuple:
         try:
+            asyncio.sleep(1)
             async with cls.session.get(url) as resp:
                 if resp.status != 200:
                     return "ERROR"
@@ -191,7 +192,7 @@ class Crawler:
             return "ERROR"
 
     @classmethod
-    async def try_to_get_image_size(cls, url: str, retries: int = 5):
+    async def try_to_get_image_size(cls, url: str, retries: int = 5) -> tuple:
         for _ in range(retries):
             size = await cls.get_image_size(url)
             if size != "ERROR":
@@ -199,8 +200,9 @@ class Crawler:
         return (0, 0)  # サイズが見つからない場合は(0, 0)を返す
 
     @classmethod
-    async def get_soup(cls, url: str):
+    async def get_soup(cls, url: str) -> BeautifulSoup | str:
         try:
+            asyncio.sleep(1)
             async with cls.session.get(url) as resp:
                 if resp.status != 200:
                     return "ERROR"
@@ -210,7 +212,7 @@ class Crawler:
             return "ERROR"
 
     @classmethod
-    async def try_to_get_soup(cls, url: str, retries: int = 5):
+    async def try_to_get_soup(cls, url: str, retries: int = 5) -> BeautifulSoup | str:
         for _ in range(retries):
             soup = await cls.get_soup(url)
             if soup != "ERROR":
@@ -218,7 +220,7 @@ class Crawler:
         return "FAILED"
 
     @classmethod
-    async def get_new_articles(cls):
+    async def get_new_articles(cls) -> list:
         soup = await cls.try_to_get_soup(target_url)
         if soup == "FAILED":
             return []
