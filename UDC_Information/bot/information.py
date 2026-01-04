@@ -180,7 +180,7 @@ class Crawler:
     @classmethod
     async def get_image_size(cls, url: str) -> tuple:
         try:
-            asyncio.sleep(1)
+            await asyncio.sleep(1)
             async with cls.session.get(url) as resp:
                 if resp.status != 200:
                     return "ERROR"
@@ -202,7 +202,7 @@ class Crawler:
     @classmethod
     async def get_soup(cls, url: str) -> BeautifulSoup | str:
         try:
-            asyncio.sleep(1)
+            await asyncio.sleep(1)
             async with cls.session.get(url) as resp:
                 if resp.status != 200:
                     return "ERROR"
