@@ -64,7 +64,7 @@ class Crawler:
             cls.session = None
 
     @staticmethod
-    def make_dummy_public_metrics():
+    def make_dummy_public_metrics() -> dict:
         return {
             "retweet_count": -1,
             "reply_count": -1,
@@ -73,7 +73,7 @@ class Crawler:
         }
 
     @classmethod
-    async def fetch_latest_tweets(cls, max_results: int):
+    async def fetch_latest_tweets(cls, max_results: int) -> list:
         retries = 5
         bearer_token = os.getenv("BEARER_TOKEN")
         user_id = os.getenv("TWITTER_USER_ID")
@@ -111,6 +111,7 @@ async def main():
             if not latest_tweets:
                 return
             for tweet in latest_tweets:
+                # 仮のpublic_metricsを使用
                 public_metrics = tweet.get(
                     "public_metrics", Crawler.make_dummy_public_metrics()
                 )
@@ -147,7 +148,7 @@ async def main():
         await asyncio.sleep(1000)
 
 
-def is_correct_channel(ctx):
+def is_correct_channel(ctx) -> bool:
     return ctx.channel.id == channel_id
 
 
