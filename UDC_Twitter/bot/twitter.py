@@ -1,10 +1,10 @@
+import os
+import asyncio
+import traceback
 import discord
 from discord.ext import commands
-import mysql.connector
-import requests
-import asyncio
-import os
-import traceback
+import aiohttp
+import aiomysql
 
 TOKEN = os.getenv("TOKEN")
 intent = discord.Intents.default()
@@ -15,89 +15,111 @@ user_name = os.getenv("TWITTER_USER_NAME")
 task = None
 
 
-def is_correct_channel(ctx):
-    return ctx.channel.id == channel_id
+class UseMySQL:
+    pool: aiomysql.Pool | None = None
+
+    @classmethod
+    async def init_pool(cls):
+        if cls.pool is None:
+            cls.pool = await aiomysql.create_pool(
+                host=os.getenv("DB_HOST"),
+                user=os.getenv("DB_USER"),
+                password=os.getenv("DB_PASSWORD"),
+                db=os.getenv("DB_NAME"),
+                autocommit=True,
+                minsize=1,
+                maxsize=5,
+            )
+
+    @classmethod
+    async def close_pool(cls):
+        if cls.pool:
+            cls.pool.close()
+            await cls.pool.wait_closed()
+            cls.pool = None
+
+    @classmethod
+    async def run_sql(cls, sql: str, params: tuple = ()):
+        async with cls.pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, params)
+                if sql.strip().upper().startswith("SELECT"):
+                    rows = await cur.fetchall()
+                    return [r[0] if isinstance(r, tuple) else r for r in rows]
 
 
-def get_connection():
-    return mysql.connector.connect(
-        host=os.getenv("DB_HOST"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        database=os.getenv("DB_NAME"),
-    )
+class Crawler:
+    session: aiohttp.ClientSession | None = None
 
+    @classmethod
+    async def init_session(cls):
+        if cls.session is None:
+            timeout = aiohttp.ClientTimeout(total=30)
+            cls.session = aiohttp.ClientSession(timeout=timeout)
 
-async def run_sql(sql: str, params: tuple):
-    conn = get_connection()
-    cursor = conn.cursor(buffered=True)
-    if params != ():
-        cursor.execute(sql, params)
-    else:
-        cursor.execute(sql)
-    if sql.strip().upper().startswith("SELECT"):
-        result = cursor.fetchall()
-        cursor.close()
-        conn.close()
-        return result
-    else:
-        conn.commit()
-        cursor.close()
-        conn.close()
-        return
+    @classmethod
+    async def close_session(cls):
+        if cls.session:
+            await cls.session.close()
+            cls.session = None
 
+    @staticmethod
+    def make_dummy_public_metrics() -> dict:
+        return {
+            "retweet_count": -1,
+            "reply_count": -1,
+            "like_count": -1,
+            "quote_count": -1,
+        }
 
-def make_dummy_public_metrics():
-    return {
-        "retweet_count": -1,
-        "reply_count": -1,
-        "like_count": -1,
-        "quote_count": -1,
-    }
-
-
-async def fetch_latest_tweets(max_results: int):
-    retries = 5
-    bearer_token = os.getenv("BEARER_TOKEN")
-    user_id = os.getenv("TWITTER_USER_ID")
-    if not user_id:
+    @classmethod
+    async def fetch_latest_tweets(cls, max_results: int) -> list:
+        retries = 5
+        bearer_token = os.getenv("BEARER_TOKEN")
+        user_id = os.getenv("TWITTER_USER_ID")
+        if not user_id:
+            return []
+        url = f"https://api.twitter.com/2/users/{user_id}/tweets"
+        headers = {
+            "Authorization": f"Bearer {bearer_token}",
+            "User-Agent": "v2UserTweetsPython",
+        }
+        # params = {"max_results": max_results, "tweet.fields": "text,public_metrics"}
+        params = {"max_results": max_results, "tweet.fields": "text"}
+        for attempt in range(retries):
+            await asyncio.sleep(1)
+            response = await cls.session.get(url, headers=headers, params=params)
+            if response.status_code == 200:
+                return (await response.json()).get("data", [])
+            elif response.status_code == 429:
+                print(f"レート制限に到達しました。")
+                await asyncio.sleep(200 * (attempt + 1))
+            else:
+                print(
+                    f"ツイートの取得に失敗: {response.status_code}, {await response.text()}"
+                )
         return []
-    url = f"https://api.twitter.com/2/users/{user_id}/tweets"
-    headers = {
-        "Authorization": f"Bearer {bearer_token}",
-        "User-Agent": "v2UserTweetsPython",
-    }
-    # params = {"max_results": max_results, "tweet.fields": "text,public_metrics"}
-    params = {"max_results": max_results, "tweet.fields": "text"}
-    for attempt in range(retries):
-        await asyncio.sleep(1)
-        response = requests.get(url, headers=headers, params=params)
-        if response.status_code == 200:
-            return response.json().get("data", [])
-        elif response.status_code == 429:
-            print(f"レート制限に到達しました。")
-            await asyncio.sleep(200 * (attempt + 1))
-        else:
-            print(f"エラー: {response.status_code}, {response.text}")
-    return []
 
 
 async def main():
     get_tweet_number = 5
     while True:
         try:
-            latest_tweets = reversed(await fetch_latest_tweets(get_tweet_number))
+            latest_tweets = reversed(
+                await Crawler.fetch_latest_tweets(get_tweet_number)
+            )
             if not latest_tweets:
                 return
             for tweet in latest_tweets:
+                # 仮のpublic_metricsを使用
                 public_metrics = tweet.get(
-                    "public_metrics", make_dummy_public_metrics()
+                    "public_metrics", Crawler.make_dummy_public_metrics()
                 )
                 tweet_text = tweet["text"]
                 tweet_id = tweet["id"]
                 tweet_url = f"https://x.com/{user_name}/status/{tweet_id}"
                 is_retweet = tweet_text.startswith("RT @")
-                existing = await run_sql(
+                existing = await UseMySQL.run_sql(
                     "SELECT id FROM tweets WHERE tweet_id = %s", (tweet_id,)
                 )
                 if existing:
@@ -106,11 +128,11 @@ async def main():
                 await channel.send(
                     f"新しい投稿です！拡散よろしくお願いします！\n{tweet_url}"
                 )
-                await run_sql(
+                await UseMySQL.run_sql(
                     "INSERT INTO tweets (text, tweet_id, url, is_retweet) VALUES (%s, %s, %s, %s)",
                     (tweet_text, tweet_id, tweet_url, is_retweet),
                 )
-                await run_sql(
+                await UseMySQL.run_sql(
                     "INSERT INTO public_metrics (tweet_id, retweet_count, reply_count, like_count, quote_count) VALUES (%s, %s, %s, %s, %s)",
                     (
                         tweet_id,
@@ -126,6 +148,10 @@ async def main():
         await asyncio.sleep(1000)
 
 
+def is_correct_channel(ctx) -> bool:
+    return ctx.channel.id == channel_id
+
+
 @client.event
 async def test(ctx):
     if is_correct_channel(ctx):
@@ -135,6 +161,8 @@ async def test(ctx):
 @client.event
 async def on_ready():
     global task
+    await Crawler.init_session()
+    await UseMySQL.init_pool()
     print("Bot is ready!")
     if task is None or task.done():
         task = asyncio.create_task(main())
