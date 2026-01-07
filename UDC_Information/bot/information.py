@@ -83,7 +83,7 @@ class Logic:
                 return "gp_result"
             # https://supersolenoid.jp/blog-entry-42770.html
             return "cs_result"
-        if any(x in title for x in ("が公開", "多数公開", "が判明")):
+        if any(x in title for x in ("が公開", "多数公開", "が判明", "が全種公開")):
             # https://supersolenoid.jp/blog-entry-42669.html
             if "よくある質問" not in title:
                 return "new_card"
