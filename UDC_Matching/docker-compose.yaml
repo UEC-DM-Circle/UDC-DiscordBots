@@ -2,9 +2,9 @@ version: '3.8'
 services:
   bot:
     build: .
-    restart: unless-stopped
     volumes:
       - ./bot:/usr/src/app:rw
+    restart: unless-stopped
     env_file:
       - .env
     environment:
