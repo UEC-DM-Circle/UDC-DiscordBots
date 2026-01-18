@@ -71,7 +71,7 @@ class Announce:
         announcements = await UseMySQL.run_sql(
             "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = 1 AND is_announced = 0"
         )
-        if not announcements:
+        if announcements:
             title, place, comment = announcements
             text = f"@everyone\n\n今日は{title}です！\n場所：{place}"
             if comment:
@@ -120,8 +120,18 @@ class Announce:
         await Announce.announce_tomorrow()
         await Announce.check_task()
 
+    @staticmethod
+    async def check_on_ready():
+        # 起動時にアナウンスできてないものがあればアナウンスする
+        now = datetime.datetime.now()
+        if 6 <= now.hour < 18:
+            await Announce.announce_today()
+        else:
+            await Announce.announce_tomorrow()
+
 
 async def main():
+    await Announce.check_on_ready()
     while True:
         try:
             await Announce.check_time()
