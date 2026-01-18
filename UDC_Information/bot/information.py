@@ -54,6 +54,7 @@ class UseMySQL:
                 await cur.execute(sql, params)
                 if sql.strip().upper().startswith("SELECT"):
                     rows = await cur.fetchall()
+                    print([r[0] if isinstance(r, tuple) else r for r in rows])
                     return [r[0] if isinstance(r, tuple) else r for r in rows]
 
 
