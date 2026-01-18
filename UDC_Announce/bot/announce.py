@@ -45,7 +45,8 @@ class UseMySQL:
                 await cur.execute(sql, params)
                 if sql.strip().upper().startswith("SELECT"):
                     rows = await cur.fetchall()
-                    return [r[0] if isinstance(r, tuple) else r for r in rows]
+                    print(rows)
+                    return rows
 
 
 class Announce:
@@ -93,31 +94,10 @@ class Announce:
     @staticmethod
     async def check_time():
         now = datetime.datetime.now()
-        next_morning = now.replace(hour=6, minute=0, second=0, microsecond=0)
-        if 6 <= now.hour < 18:
-            pass
-        else:
-            if 18 <= now.hour <= 23:
-                next_morning += datetime.timedelta(days=1)
-            seconds_until = (next_morning - now).total_seconds()
-            wait_hours = int(seconds_until // 3600)
-            seconds_until %= 3600
-            await asyncio.sleep(seconds_until)
-            for _ in range(wait_hours):
-                await Announce.check_task()
-                await asyncio.sleep(3600)
+        if now.hour == 6:
             await Announce.announce_today()
-            await Announce.check_task()
-        now = datetime.datetime.now()
-        next_evening = now.replace(hour=18, minute=0, second=0, microsecond=0)
-        seconds_until = (next_evening - now).total_seconds()
-        wait_hours = int(seconds_until // 3600)
-        seconds_until %= 3600
-        await asyncio.sleep(seconds_until)
-        for _ in range(wait_hours):
-            await Announce.check_task()
-            await asyncio.sleep(3600)
-        await Announce.announce_tomorrow()
+        elif now.hour == 18:
+            await Announce.announce_tomorrow()
         await Announce.check_task()
 
 
@@ -128,6 +108,7 @@ async def main():
         except Exception as e:
             print(f"Error: {e}")
             traceback.print_exc()
+        await asyncio.sleep(3600)
 
 
 @client.command()
