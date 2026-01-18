@@ -73,7 +73,7 @@ class Logic:
             if "など大会結果" in title:
                 # https://supersolenoid.jp/blog-entry-42601.html
                 return "many_cs_results"
-            if "はっちCS" in title:
+            if any(x in title for x in ("はっちCS", "はっちcs")):
                 # https://supersolenoid.jp/blog-entry-42779.html
                 # https://supersolenoid.jp/blog-entry-42860.html
                 # https://supersolenoid.jp/blog-entry-42944.html
