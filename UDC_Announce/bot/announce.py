@@ -45,8 +45,8 @@ class UseMySQL:
                 await cur.execute(sql, params)
                 if sql.strip().upper().startswith("SELECT"):
                     rows = await cur.fetchall()
-                    print(rows)
-                    return rows
+                    print(rows[0])
+                    return rows[0] if rows else None
 
 
 class Announce:
@@ -54,9 +54,9 @@ class Announce:
     async def announce_tomorrow():
         channel = client.get_channel(channel_id)
         announcements = await UseMySQL.run_sql(
-            "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = 0 AND is_announced = 0"
+            "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = 0 AND is_announced = 1"
         )
-        if announcements:
+        if not announcements:
             title, place, comment = announcements[0]
             text = f"@everyone\n\n明日は{title}です！\n場所：{place}"
             if comment:
