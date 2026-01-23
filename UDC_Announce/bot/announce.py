@@ -52,11 +52,11 @@ class Announce:
     @staticmethod
     async def announce_tomorrow():
         channel = client.get_channel(channel_id)
-        announcements = await UseMySQL.run_sql(
+        tomorrow_announcement = await UseMySQL.run_sql(
             "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = 0 AND is_announced = 0"
         )
-        if announcements:
-            title, place, comment = announcements
+        if tomorrow_announcement:
+            title, place, comment = tomorrow_announcement
             text = f"@everyone\n\n明日は{title}です！\n場所：{place}"
             if comment:
                 text += f"\n{comment}"
@@ -68,11 +68,11 @@ class Announce:
     @staticmethod
     async def announce_today():
         channel = client.get_channel(channel_id)
-        announcements = await UseMySQL.run_sql(
+        today_announcement = await UseMySQL.run_sql(
             "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = 1 AND is_announced = 0"
         )
-        if announcements:
-            title, place, comment = announcements
+        if today_announcement:
+            title, place, comment = today_announcement
             text = f"@everyone\n\n今日は{title}です！\n場所：{place}"
             if comment:
                 text += f"\n{comment}"
@@ -84,10 +84,10 @@ class Announce:
     @staticmethod
     async def check_task():
         test_channel = client.get_channel(test_channel_id)
-        announcements = await UseMySQL.run_sql(
+        next_announcement = await UseMySQL.run_sql(
             "SELECT * FROM announcements WHERE date > CURDATE()"
         )
-        if not announcements:
+        if not next_announcement:
             await test_channel.send("日程を登録してください！")
 
     @staticmethod
