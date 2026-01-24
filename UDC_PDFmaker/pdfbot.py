@@ -1,4 +1,4 @@
-import pdfgene as pg
+from pdfgene import generate_pdf_binary
 import os
 import re
 import discord
@@ -9,16 +9,7 @@ load_dotenv()
 TOKEN = os.getenv("TOKEN")
 GENERATE = int(os.getenv("GENERATE"))
 TEST=int(os.getenv("TEST"))
-
-def is_making():
-  if (os.path.isfile(pg.pdf_name)):
-    print("is making!")
-    return True
-  if (os.path.isdir(pg.pics_folder_path)):
-    print("is making!")
-    return True
-  print("isn't making!")
-  return False
+pdf_name = "artifact.pdf"
 
 def legal_url(url: str):
   pattern = r'^https:\/\/gachi-matome\.com\/deckrecipe-detail-dm\/\?tcgrevo_deck_maker_deck_id=+'
@@ -36,24 +27,30 @@ async def test(ctx):
   await ctx.send("test")
 
 @client.command()
-async def pdfmake(ctx, url: str):
+async def pdfmake(ctx, *args):
   if ctx.channel.id not in [TEST,GENERATE]:
     await ctx.send("専用のチャンネルで実行してください")
     return
+  url = None
+  ngr_option = False
+  nsp_option = False
+  for arg in args:
+    if arg == "-ngr":
+      ngr_option = True
+    elif arg == "-nsp":
+      nsp_option = True
+    elif arg.startswith("http"):
+      url = arg
+
   if (not legal_url(url)):
     print("illegal")
     await ctx.send("urlが不正です")
     return
-  if (is_making()):
-    await ctx.send("時間をおいてもう一度お試しください")
-    return
-  await ctx.send("生成中です")
-  pg.pdfgene(url=url)
-  await ctx.send(file=discord.File(pg.pdf_name))
-  await ctx.send(f"{ctx.author.mention} 生成完了しました")
-  pg.rmpdf()
 
-# pg.rmpics()
-pg.rmpdf()
+  await ctx.send("生成中です")
+  pdf_binary = generate_pdf_binary(url, ngr_option, nsp_option)
+  await ctx.send(file=discord.File(fp=pdf_binary, filename=pdf_name))
+  await ctx.send(f"{ctx.author.mention} 生成完了しました")
+
 
 client.run(TOKEN)

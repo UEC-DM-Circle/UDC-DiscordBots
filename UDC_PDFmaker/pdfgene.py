@@ -2,17 +2,14 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
 from reportlab.lib.pagesizes import A4, portrait
 from reportlab.lib.utils import ImageReader
-import requests, os, cv2, numpy as np
+import requests, cv2, numpy as np
 from PIL import Image
 from io import BytesIO
 import requests
 from urllib.parse import urlparse, parse_qs
-from glob import glob
 
 margin = 0
 margin_tp = 10
-pics_folder_path = "./pics"
-pdf_name = "artifact.pdf"
 CARDHIGHT = 88
 CARDWIDTH = 63
 card_h = CARDHIGHT
@@ -60,7 +57,7 @@ def compress_image(pil_img, quality=comp_ratio):
     return ImageReader(buffer)
 
 
-def crop(image):  # 引数は画像の相対パス
+def crop(image):  # 引数は画像
     # 画像の読み込み
     img = byte2cv2img(image)
 
@@ -94,7 +91,8 @@ def crop(image):  # 引数は画像の相対パス
     y2_max = max(y2)
 
     cropped_img = img[y1_min:y2_max, x1_min:x2_max]
-    return cv2img2pil(cropped_img)
+    pil_img = cv2img2pil(cropped_img)
+    return compress_image(pil_img)
 
 def getDeckId(url) -> str | None:
     """URLからデッキIDを取得する"""
@@ -143,26 +141,35 @@ def getImageUrlList(deck_url: str) -> tuple | None:
         return None
     return getImageUrlsFromJson(main_cards), getImageUrlsFromJson(gr_cards), getImageUrlsFromJson(extra_cards)
 
-def make_pdf_from_images(image_urls: list):
-    page = canvas.Canvas(pdf_name, pagesize=portrait(A4))
+def make_pdf_binary_from_images(image_urls: list):
+  buffer = BytesIO()
+  page = canvas.Canvas(buffer, pagesize=portrait(A4))
 
-    for i in range(0, len(image_urls), 9):
-        for j in range(9):
-            if i + j < len(image_urls):
-                page.drawImage(image_urls[i + j], width(j) * mm, height(j) * mm, card_w * mm, card_h * mm)
-            page.showPage()
-    
-    return page
+  for i in range(0, len(image_urls), 9):
+    for j in range(9):
+      if i + j < len(image_urls):
+        page.drawImage(image_urls[i + j], width(j) * mm, height(j) * mm, card_w * mm, card_h * mm)
+    page.showPage()
+  page.save()
+  buffer.seek(0)
+  return buffer
 
-def pdfgene(url):
+def generate_pdf_binary(url, ngr_option=False, nsp_option=False):
     #画像URLリストの取得    
     print("get image urls")
     main_cards, gr_cards, extra_cards = getImageUrlList(url)
     adextra_cards = []
-    for card in extra_cards:
-        for i in range(1,4):
-            adextra_cards.append(card.split("_")[0] + "_" + str(i+1) + ".jpg")
-    srcs = main_cards + gr_cards + extra_cards + adextra_cards
+    if not nsp_option:
+        for card in extra_cards:
+            for i in range(1,4):
+                adextra_cards.append(card.split("_")[0] + "_" + str(i+1) + ".jpg")
+  
+    srcs = main_cards
+    if not ngr_option:
+        srcs += gr_cards
+    if not nsp_option:
+        srcs += extra_cards
+        srcs += adextra_cards
 
     #画像のダウンロード
     print("download images")
@@ -170,21 +177,10 @@ def pdfgene(url):
     for src in srcs:
         r = requests.get(src)
         if r.status_code == 200:
-            cropped_img = crop(r.content)
-            imgs.append(compress_image(cropped_img))
+            imgs.append(crop(r.content))
 
     #pdf作成と画像追加
     print("make pdf")
-
-    page = make_pdf_from_images(imgs)
-    page.save()
+    page = make_pdf_binary_from_images(imgs)
     print("complete")
-
-
-def rmpdf():
-    pdf_files = glob(os.path.join("*.pdf"))
-    for file in pdf_files:
-        try:
-            os.remove(file)
-        except Exception as e:
-            pass
+    return page
