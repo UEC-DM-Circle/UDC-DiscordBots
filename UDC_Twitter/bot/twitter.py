@@ -119,8 +119,11 @@ async def main():
                 tweet_id = tweet["id"]
                 tweet_url = f"https://x.com/{user_name}/status/{tweet_id}"
                 is_retweet = tweet_text.startswith("RT @")
-                sent = await UseMySQL.run_sql(
-                    "SELECT id FROM tweets WHERE tweet_id = %s", (tweet_id,)
+                sent = (
+                    await UseMySQL.run_sql(
+                        "SELECT id FROM tweets WHERE tweet_id = %s", (tweet_id,)
+                    )
+                    != []
                 )
                 if sent:
                     continue
