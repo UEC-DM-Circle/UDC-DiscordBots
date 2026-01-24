@@ -1,26 +1,26 @@
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
 from reportlab.lib.pagesizes import A4, portrait
 from reportlab.lib.utils import ImageReader
-import time, requests, os, cv2, re, numpy as np
+import requests, os, cv2, numpy as np
 from PIL import Image
 from io import BytesIO
+import requests
+from urllib.parse import urlparse, parse_qs
 from glob import glob
-import tempfile
 
 margin = 0
-margin_tp = 15
+margin_tp = 10
 pics_folder_path = "./pics"
 pdf_name = "artifact.pdf"
 CARDHIGHT = 88
 CARDWIDTH = 63
 card_h = CARDHIGHT
 card_w = CARDWIDTH
-comp_ratio = 70
+comp_ratio = 100
+API_BASE_URL = "https://ockvhiwjud.execute-api.ap-northeast-1.amazonaws.com/prod/proxy/dm-decks/public/"
+IMAGE_BASE_URL = "https://storage.googleapis.com/ka-nabell-card-images/img/card/"
+
 
 
 def height(i):
@@ -96,71 +96,87 @@ def crop(image):  # 引数は画像の相対パス
     cropped_img = img[y1_min:y2_max, x1_min:x2_max]
     return cv2img2pil(cropped_img)
 
+def getDeckId(url) -> str | None:
+    """URLからデッキIDを取得する"""
+    try:
+        query = urlparse(url).query
+        params = parse_qs(query)
+        return params.get('tcgrevo_deck_maker_deck_id', [None])[0]
+    except Exception:
+        return None
+
+def getJsonData(deck_id) -> dict | None:
+    """デッキIDからデッキデータを取得する"""
+    api_url = f"{API_BASE_URL}{deck_id}"
+    try:
+        res = requests.get(api_url, timeout=10)
+        res.raise_for_status()
+        return res.json()
+    except Exception:
+        return None
+
+def getImageUrl(id_url: str) -> str:
+    """カードIDから画像URLを取得する"""
+    return IMAGE_BASE_URL + id_url
+
+def getImageUrlsFromJson(card_infos: list) -> list[str]:
+    """デッキデータから画像URLリストを取得する"""
+    card_urls = []
+    for card in card_infos:
+        img_url = card.get("large_image_url")
+        if img_url:
+            card_urls.append(getImageUrl(img_url))
+    return card_urls
+
+def getImageUrlList(deck_url: str) -> tuple | None:
+    """デッキURLから画像URLリストを取得する"""
+    deck_id = getDeckId(deck_url)
+    if not deck_id:
+        return None
+    data = getJsonData(deck_id)
+    if not data:
+        return None
+    main_cards = data.get("dmDeck", {}).get("main_cards", [])
+    gr_cards = data.get("dmDeck", {}).get("gr_cards", [])
+    extra_cards = data.get("dmDeck", {}).get("hyper_spatial_cards", [])
+    if not main_cards:
+        return None
+    return getImageUrlsFromJson(main_cards), getImageUrlsFromJson(gr_cards), getImageUrlsFromJson(extra_cards)
+
+def make_pdf_from_images(image_urls: list):
+    page = canvas.Canvas(pdf_name, pagesize=portrait(A4))
+
+    for i in range(0, len(image_urls), 9):
+        for j in range(9):
+            if i + j < len(image_urls):
+                page.drawImage(image_urls[i + j], width(j) * mm, height(j) * mm, card_w * mm, card_h * mm)
+            page.showPage()
+    
+    return page
 
 def pdfgene(url):
-    print("start")
-    # Chromeドライバの設定
-    chrome_options = Options()
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--headless=new")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--remote-debugging-port=9222")
-    chrome_options.add_argument("--disable-extensions")
-    # 一時ディレクトリを作ってuser-data-dirとして使う（競合を防ぐ）
-    temp_user_data_dir = tempfile.mkdtemp()
-    chrome_options.add_argument(f"--user-data-dir={temp_user_data_dir}")
-    # Linuxの場合
-    service = Service("/usr/bin/chromedriver")
-    # Windowsの場合は以下のようにパスを指定
-    # service = Service("C:\\path\\to\\chromedriver.exe")
-    driver = webdriver.Chrome(service=service, options=chrome_options)
-    try:
-        # デッキページにアクセス
-        print("access url")
-        driver.get(url)
-        time.sleep(0.5)
+    #画像URLリストの取得    
+    print("get image urls")
+    main_cards, gr_cards, extra_cards = getImageUrlList(url)
+    adextra_cards = []
+    for card in extra_cards:
+        for i in range(1,4):
+            adextra_cards.append(card.split("_")[0] + "_" + str(i+1) + ".jpg")
+    srcs = main_cards + gr_cards + extra_cards + adextra_cards
 
-        # 画像URLの取得
-        print("get image urls")
-        imgs = driver.find_elements(By.CLASS_NAME, "item8_img")
-        srcs = []
-        for img in imgs:
-            if re.match("chojigen_.", img.get_attribute("alt")):
-                for i in range(4):
-                    srcs.append(
-                        img.get_attribute("src").split("_")[0]
-                        + "_"
-                        + str(i + 1)
-                        + ".jpg"
-                    )
-            else:
-                srcs.append(img.get_attribute("src"))
-    finally:
-        driver.quit()
-
-    # 画像のダウンロード
+    #画像のダウンロード
     print("download images")
     imgs = []
     for src in srcs:
-        page = src.replace("/img/s/", "/img/")
-        r = requests.get(page)
+        r = requests.get(src)
         if r.status_code == 200:
             cropped_img = crop(r.content)
             imgs.append(compress_image(cropped_img))
 
-    # pdf作成と画像追加
+    #pdf作成と画像追加
     print("make pdf")
-    page = canvas.Canvas(pdf_name, pagesize=portrait(A4))
 
-    for i in range(0, len(imgs), 9):
-        for j in range(9):
-            if i + j < len(imgs):
-                page.drawImage(
-                    imgs[i + j], width(j) * mm, height(j) * mm, card_w * mm, card_h * mm
-                )
-        page.showPage()
-
+    page = make_pdf_from_images(imgs)
     page.save()
     print("complete")
 
