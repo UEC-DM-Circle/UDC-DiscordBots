@@ -97,11 +97,14 @@ class Logic:
         for result_image in result_images:
             if not await Logic.judge_isimage(result_image):
                 continue
-            sent_images = await UseMySQL.run_sql(
-                "SELECT url FROM sent_images WHERE service = 'UDC_Information'  AND original_url = %s",
-                (url,),
+            sent = (
+                await UseMySQL.run_sql(
+                    "SELECT url FROM sent_images WHERE service = 'UDC_Information' AND url = %s",
+                    (result_image,),
+                )
+                != []
             )
-            if result_image in sent_images:
+            if sent:
                 continue
             deck_image_size = await Crawler.try_to_get_image_size(result_image)
             await UseMySQL.run_sql(
@@ -123,12 +126,14 @@ class Logic:
         for new_info_image in new_info_images:
             if not await Logic.judge_isimage(new_info_image):
                 continue
-            sent_images = await UseMySQL.run_sql(
-                "SELECT url FROM sent_images WHERE service = 'UDC_Information'  AND (category = 'new_card' OR category = 'stream')",
-                (),
+            sent = (
+                await UseMySQL.run_sql(
+                    "SELECT url FROM sent_images WHERE service = 'UDC_Information' AND (category = 'new_card' OR category = 'stream') AND url = %s",
+                    (new_info_image,),
+                )
+                != []
             )
-            if new_info_image in sent_images:
-                # すでに送信済みの画像はスキップ
+            if sent:
                 continue
             newcard_image_size = await Crawler.try_to_get_image_size(new_info_image)
             # if category == "stream":
@@ -483,12 +488,15 @@ class Parser:
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
             return
-        sent_urls = await UseMySQL.run_sql(
-            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'new_card'",
-            (),
+        is_new_url = (
+            await UseMySQL.run_sql(
+                "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'new_card' AND url = %s",
+                (url,),
+            )
+            == []
         )
         # 1回だけ追加する
-        if url not in sent_urls:
+        if is_new_url:
             await UseMySQL.run_sql(
                 "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
                 (
@@ -522,12 +530,15 @@ class Parser:
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
             return
-        sent_urls = await UseMySQL.run_sql(
-            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'stream'",
-            (),
+        is_new_url = (
+            await UseMySQL.run_sql(
+                "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'stream' AND url = %s",
+                (url,),
+            )
+            == []
         )
         # 1回だけ追加する
-        if url not in sent_urls:
+        if is_new_url:
             await UseMySQL.run_sql(
                 "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
                 (
