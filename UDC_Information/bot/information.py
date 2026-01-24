@@ -58,12 +58,6 @@ class UseMySQL:
 
 
 class Logic:
-    @staticmethod
-    async def clean_list(lst: list) -> list:
-        for i in range(len(lst)):
-            if type(lst[i]) is tuple:
-                lst[i] = lst[i][0]
-        return lst
 
     @staticmethod
     async def judge_category(title: str) -> str:
@@ -91,6 +85,26 @@ class Logic:
             # https://supersolenoid.jp/blog-entry-42757.html
             return "stream"
         return "etc"
+
+    @staticmethod
+    async def decide_parser(url: str, category: str):
+        match category:
+            case "ranking":
+                await Parser.parse_ranking(url)
+            case "many_cs_results":
+                await Parser.parse_many_cs_results(url)
+            case "hatti_cs_result":
+                await Parser.parse_hatti_cs_result(url)
+            case "gp_result":
+                await Parser.parse_gp_result(url)
+            case "cs_result":
+                await Parser.parse_cs_result(url)
+            case "new_card":
+                await Parser.parse_new_card(url)
+            case "stream":
+                await Parser.parse_stream(url)
+            case "etc":
+                pass
 
     # send_result_imagesとsend_new_info_imagesを統合する
     @staticmethod
@@ -566,23 +580,7 @@ async def main():
         try:
             new_articles = await Crawler.get_new_articles()
             for new_article in new_articles:
-                match new_article["category"]:
-                    case "ranking":
-                        await Parser.parse_ranking(new_article)
-                    case "many_cs_results":
-                        await Parser.parse_many_cs_results(new_article)
-                    case "hatti_cs_result":
-                        await Parser.parse_hatti_cs_result(new_article)
-                    case "gp_result":
-                        await Parser.parse_gp_result(new_article)
-                    case "cs_result":
-                        await Parser.parse_cs_result(new_article)
-                    case "new_card":
-                        await Parser.parse_new_card(new_article)
-                    case "stream":
-                        await Parser.parse_stream(new_article)
-                    case "etc":
-                        pass
+                await Logic.decide_parser(new_article["url"], new_article["category"])
         except Exception as e:
             print(f"Error: {e}")
             traceback.print_exc()
