@@ -92,6 +92,7 @@ class Logic:
             return "stream"
         return "etc"
 
+    # send_result_imagesとsend_new_info_imagesを統合する
     @staticmethod
     async def send_result_images(result_images: list, url: str, category: str):
         for result_image in result_images:
@@ -160,6 +161,7 @@ class Logic:
             await client.get_channel(DISCORD_NEWCARD_CHANNEL_ID).send(new_info_image)
         return
 
+    # 上に持ってくる
     @staticmethod
     async def judge_isimage(url: str) -> bool:
         return url.startswith("https") and any(
@@ -243,6 +245,7 @@ class Crawler:
 
 
 class Parser:
+    # 全体的に共通部分をまとめる
     @staticmethod
     async def parse_ranking(new_article: dict):
         sent_urls = await UseMySQL.run_sql(
