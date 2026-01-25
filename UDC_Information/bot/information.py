@@ -9,9 +9,10 @@ from bs4 import BeautifulSoup
 import aiomysql
 from PIL import Image
 
+SERVICE_NAME = "UDC_Information"
 TOKEN = os.getenv("TOKEN")
 # クロール対象ページ
-target_url = "https://supersolenoid.jp/blog-category-12.html"
+TARGET_URL = "https://supersolenoid.jp/blog-category-12.html"
 # 入賞数ランキング
 DISCORD_INFO_CHANNEL_ID = int(os.environ.get("DISCORD_INFO_CHANNEL_ID"))
 # 新カード
@@ -224,9 +225,16 @@ class Crawler:
                 return soup
         return "FAILED"
 
+    @staticmethod
+    async def register_crawl(target_url: str, method: str):
+        await UseMySQL.run_sql(
+            "INSERT INTO crawls (target_url, method, service) VALUES (%s, %s, %s)",
+            (target_url, method, SERVICE_NAME),
+        )
+
     @classmethod
     async def get_new_articles(cls) -> list:
-        soup = await cls.try_to_get_soup(target_url)
+        soup = await cls.try_to_get_soup(TARGET_URL)
         if soup == "FAILED":
             return []
         titles = soup.find_all("div", class_="EntryTitle")
