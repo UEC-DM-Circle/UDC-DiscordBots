@@ -9,8 +9,8 @@ dotenv==0.9.9
 frozenlist==1.8.0
 idna==3.11
 multidict==6.7.0
-numpy==2.4.1
-opencv-python==4.13.0.90
+numpy==2.2.4
+opencv-python==4.12.0.88
 pillow==12.1.0
 propcache==0.4.1
 python-dotenv==1.2.1

@@ -1,0 +1,13 @@
+version: '3.8'
+services:
+  bot:
+    build: .
+    volumes:
+      - ./bot:/usr/src/app:rw
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Tokyo
+    command: ["python3", "pdfbot.py"]
+    tty: true
