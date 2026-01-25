@@ -11,7 +11,6 @@ from PIL import Image
 
 SERVICE_NAME = "UDC_Information"
 TOKEN = os.getenv("TOKEN")
-SERVICE_NAME = "UDC_Information"
 # クロール対象ページ
 TARGET_URL = "https://supersolenoid.jp/blog-category-12.html"
 # 入賞数ランキング
@@ -131,7 +130,7 @@ class Logic:
                     result_image,
                     url,
                     category,
-                    "UDC_Information",
+                    SERVICE_NAME,
                     deck_image_size[0],
                     deck_image_size[1],
                 ),
@@ -171,7 +170,7 @@ class Logic:
                     new_info_image,
                     url,
                     category,
-                    "UDC_Information",
+                    SERVICE_NAME,
                     newcard_image_size[0],
                     newcard_image_size[1],
                 ),
