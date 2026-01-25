@@ -88,22 +88,22 @@ class Logic:
         return "etc"
 
     @staticmethod
-    async def decide_parser(url: str, category: str):
-        match category:
+    async def decide_parser(new_article: dict):
+        match new_article["category"]:
             case "ranking":
-                await Parser.parse_ranking(url)
+                await Parser.parse_ranking(new_article)
             case "many_cs_results":
-                await Parser.parse_many_cs_results(url)
+                await Parser.parse_many_cs_results(new_article)
             case "hatti_cs_result":
-                await Parser.parse_hatti_cs_result(url)
+                await Parser.parse_hatti_cs_result(new_article)
             case "gp_result":
-                await Parser.parse_gp_result(url)
+                await Parser.parse_gp_result(new_article)
             case "cs_result":
-                await Parser.parse_cs_result(url)
+                await Parser.parse_cs_result(new_article)
             case "new_card":
-                await Parser.parse_new_card(url)
+                await Parser.parse_new_card(new_article)
             case "stream":
-                await Parser.parse_stream(url)
+                await Parser.parse_stream(new_article)
             case "etc":
                 pass
 
@@ -596,7 +596,7 @@ async def main():
         try:
             new_articles = await Crawler.get_new_articles()
             for new_article in new_articles:
-                await Logic.decide_parser(new_article["url"], new_article["category"])
+                await Logic.decide_parser(new_article)
         except Exception as e:
             print(f"Error: {e}")
             traceback.print_exc()
