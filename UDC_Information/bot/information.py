@@ -9,9 +9,10 @@ from bs4 import BeautifulSoup
 import aiomysql
 from PIL import Image
 
+SERVICE_NAME = "UDC_Information"
 TOKEN = os.getenv("TOKEN")
 # クロール対象ページ
-target_url = "https://supersolenoid.jp/blog-category-12.html"
+TARGET_URL = "https://supersolenoid.jp/blog-category-12.html"
 # 入賞数ランキング
 DISCORD_INFO_CHANNEL_ID = int(os.environ.get("DISCORD_INFO_CHANNEL_ID"))
 # 新カード
@@ -107,6 +108,7 @@ class Logic:
             if sent:
                 continue
             deck_image_size = await Crawler.try_to_get_image_size(result_image)
+            await Crawler.register_crawl(result_image, "HTTP_GET")
             await UseMySQL.run_sql(
                 "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
                 (
@@ -146,6 +148,7 @@ class Logic:
             ):
                 # 正方形画像は広告
                 continue
+            await Crawler.register_crawl(new_info_image, "HTTP_GET")
             await UseMySQL.run_sql(
                 "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
                 (
@@ -224,11 +227,19 @@ class Crawler:
                 return soup
         return "FAILED"
 
+    @staticmethod
+    async def register_crawl(target_url: str, method: str):
+        await UseMySQL.run_sql(
+            "INSERT INTO crawls (target_url, method, service) VALUES (%s, %s, %s)",
+            (target_url, method, SERVICE_NAME),
+        )
+
     @classmethod
     async def get_new_articles(cls) -> list:
-        soup = await cls.try_to_get_soup(target_url)
+        soup = await cls.try_to_get_soup(TARGET_URL)
         if soup == "FAILED":
             return []
+        await cls.register_crawl(TARGET_URL, "HTTP_GET")
         titles = soup.find_all("div", class_="EntryTitle")
         new_articles = []
         for div in titles:
@@ -256,8 +267,10 @@ class Parser:
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
             return
+        await Crawler.register_crawl(url, "HTTP_GET")
         ranking_img = soup.find("div", class_="EntryBody").find("a").get("href")
         ranking_image_size = await Crawler.try_to_get_image_size(ranking_img)
+        await Crawler.register_crawl(ranking_img, "HTTP_GET")
         await UseMySQL.run_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
             (url, new_article["title"], new_article["category"], "UDC_Information"),
@@ -286,9 +299,7 @@ class Parser:
         # パースは一回でOK
         if url in sent_urls:
             return
-        soup = await Crawler.try_to_get_soup(url)
-        if soup == "FAILED":
-            return
+        # 中身までは見ない(現状)
         await UseMySQL.run_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
             (url, new_article["title"], new_article["category"], "UDC_Information"),
@@ -310,6 +321,7 @@ class Parser:
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
             return
+        await Crawler.register_crawl(url, "HTTP_GET")
         divisions = soup.find_all("div", class_="caption_white")
         result_div = divisions[0]
         for br in result_div.find_all("br"):
@@ -344,22 +356,32 @@ class Parser:
                     break
         if result_url != "":
             soup = await Crawler.try_to_get_soup(result_url)
-            if soup != "FAILED":
-                figures = soup.find_all("figure", class_="wp-block-image")
+            if soup == "FAILED":
+                return
+            await Crawler.register_crawl(result_url, "HTTP_GET")
+            figures = soup.find_all("figure", class_="wp-block-image")
+            images = [
+                figure.find("img").get("src")
+                for figure in figures
+                if figure.find("img") is not None
+            ]
+            if images == []:
+                figures = soup.find_all("div", class_="wp-block-image")
                 images = [
                     figure.find("img").get("src")
                     for figure in figures
                     if figure.find("img") is not None
                 ]
-                if images == []:
-                    figures = soup.find_all("div", class_="wp-block-image")
-                    images = [
-                        figure.find("img").get("src")
-                        for figure in figures
-                        if figure.find("img") is not None
-                    ]
-                # チーム戦などの場合
-                if images == []:
+            # チーム戦などの場合
+            if images == []:
+                figures = soup.find_all("li", class_="wp-block-jetpack-slideshow_slide")
+                images = [
+                    figure.find("img").get("src")
+                    for figure in figures
+                    if figure.find("img") is not None
+                ]
+            else:
+                if not await Logic.judge_isimage(images[0]):
                     figures = soup.find_all(
                         "li", class_="wp-block-jetpack-slideshow_slide"
                     )
@@ -368,16 +390,6 @@ class Parser:
                         for figure in figures
                         if figure.find("img") is not None
                     ]
-                else:
-                    if not await Logic.judge_isimage(images[0]):
-                        figures = soup.find_all(
-                            "li", class_="wp-block-jetpack-slideshow_slide"
-                        )
-                        images = [
-                            figure.find("img").get("src")
-                            for figure in figures
-                            if figure.find("img") is not None
-                        ]
         else:
             # はっちCSが協賛している別のCSの場合
             new_article["category"] = "cs_result"
@@ -407,6 +419,7 @@ class Parser:
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
             return
+        await Crawler.register_crawl(url, "HTTP_GET")
         divisions = soup.find_all("div", class_="caption_white")
         if len(divisions) < 2:
             # 記事が完成していない
@@ -456,6 +469,7 @@ class Parser:
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
             return
+        await Crawler.register_crawl(url, "HTTP_GET")
         divisions = soup.find_all("div", class_="caption_white")
         result_div = divisions[0]
         for br in result_div.find_all("br"):
@@ -488,6 +502,7 @@ class Parser:
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
             return
+        await Crawler.register_crawl(url, "HTTP_GET")
         is_new_url = (
             await UseMySQL.run_sql(
                 "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'new_card' AND url = %s",
@@ -530,6 +545,7 @@ class Parser:
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
             return
+        await Crawler.register_crawl(url, "HTTP_GET")
         is_new_url = (
             await UseMySQL.run_sql(
                 "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'stream' AND url = %s",
