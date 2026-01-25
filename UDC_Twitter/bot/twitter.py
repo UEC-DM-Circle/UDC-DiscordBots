@@ -6,12 +6,13 @@ from discord.ext import commands
 import aiohttp
 import aiomysql
 
+SERVICE_NAME = "UDC_Twitter"
 TOKEN = os.getenv("TOKEN")
+CHANNEL_ID = int(os.environ.get("CHANNEL_ID"))
+TWITTER_USER_NAME = os.getenv("TWITTER_USER_NAME")
 intent = discord.Intents.default()
 intent.message_content = True
 client = commands.Bot(command_prefix="*", intents=intent)
-channel_id = int(os.environ.get("CHANNEL_ID"))
-user_name = os.getenv("TWITTER_USER_NAME")
 task = None
 
 
@@ -72,6 +73,13 @@ class Crawler:
             "quote_count": -1,
         }
 
+    @staticmethod
+    async def register_crawl(target_url: str, method: str):
+        await UseMySQL.run_sql(
+            "INSERT INTO crawls (target_url, method, service) VALUES (%s, %s, %s)",
+            (target_url, method, SERVICE_NAME),
+        )
+
     @classmethod
     async def fetch_latest_tweets(cls, max_results: int) -> list:
         retries = 5
@@ -79,7 +87,7 @@ class Crawler:
         user_id = os.getenv("TWITTER_USER_ID")
         if not user_id:
             return []
-        url = f"https://api.twitter.com/2/users/{user_id}/tweets"
+        target_url = f"https://api.twitter.com/2/users/{user_id}/tweets"
         headers = {
             "Authorization": f"Bearer {bearer_token}",
             "User-Agent": "v2UserTweetsPython",
@@ -88,7 +96,8 @@ class Crawler:
         params = {"max_results": max_results, "tweet.fields": "text"}
         for attempt in range(retries):
             await asyncio.sleep(1)
-            response = await cls.session.get(url, headers=headers, params=params)
+            response = await cls.session.get(target_url, headers=headers, params=params)
+            await cls.register_crawl(target_url, "X_API")
             if response.status == 200:
                 return (await response.json()).get("data", [])
             elif response.status == 429:
@@ -117,7 +126,7 @@ async def main():
                 )
                 tweet_text = tweet["text"]
                 tweet_id = tweet["id"]
-                tweet_url = f"https://x.com/{user_name}/status/{tweet_id}"
+                tweet_url = f"https://x.com/{TWITTER_USER_NAME}/status/{tweet_id}"
                 is_retweet = tweet_text.startswith("RT @")
                 sent = (
                     await UseMySQL.run_sql(
@@ -127,7 +136,7 @@ async def main():
                 )
                 if sent:
                     continue
-                channel = client.get_channel(channel_id)
+                channel = client.get_channel(CHANNEL_ID)
                 await channel.send(
                     f"新しい投稿です！拡散よろしくお願いします！\n{tweet_url}"
                 )
@@ -152,7 +161,7 @@ async def main():
 
 
 def is_correct_channel(ctx) -> bool:
-    return ctx.channel.id == channel_id
+    return ctx.channel.id == CHANNEL_ID
 
 
 @client.event
