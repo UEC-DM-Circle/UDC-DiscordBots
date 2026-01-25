@@ -10,6 +10,7 @@ import aiomysql
 from PIL import Image
 
 TOKEN = os.getenv("TOKEN")
+SERVICE_NAME = "UDC_Information"
 # クロール対象ページ
 target_url = "https://supersolenoid.jp/blog-category-12.html"
 # 入賞数ランキング
@@ -114,8 +115,8 @@ class Logic:
                 continue
             sent = (
                 await UseMySQL.run_sql(
-                    "SELECT url FROM sent_images WHERE service = 'UDC_Information' AND url = %s",
-                    (result_image,),
+                    "SELECT url FROM sent_images WHERE service = %s AND url = %s",
+                    (SERVICE_NAME, result_image),
                 )
                 != []
             )
@@ -143,8 +144,8 @@ class Logic:
                 continue
             sent = (
                 await UseMySQL.run_sql(
-                    "SELECT url FROM sent_images WHERE service = 'UDC_Information' AND (category = 'new_card' OR category = 'stream') AND url = %s",
-                    (new_info_image,),
+                    "SELECT url FROM sent_images WHERE service = %s AND (category = 'new_card' OR category = 'stream') AND url = %s",
+                    (SERVICE_NAME, new_info_image),
                 )
                 != []
             )
@@ -263,8 +264,8 @@ class Parser:
     @staticmethod
     async def parse_ranking(new_article: dict):
         sent_urls = await UseMySQL.run_sql(
-            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'ranking'",
-            (),
+            "SELECT url FROM sent_urls WHERE service = %s AND category = 'ranking'",
+            (SERVICE_NAME,),
         )
         url = new_article["url"]
         # パースは一回でOK
@@ -277,7 +278,7 @@ class Parser:
         ranking_image_size = await Crawler.try_to_get_image_size(ranking_img)
         await UseMySQL.run_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-            (url, new_article["title"], new_article["category"], "UDC_Information"),
+            (url, new_article["title"], new_article["category"], SERVICE_NAME),
         )
         await UseMySQL.run_sql(
             "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
@@ -285,7 +286,7 @@ class Parser:
                 ranking_img,
                 url,
                 new_article["category"],
-                "UDC_Information",
+                SERVICE_NAME,
                 ranking_image_size[0],
                 ranking_image_size[1],
             ),
@@ -296,8 +297,8 @@ class Parser:
     @staticmethod
     async def parse_many_cs_results(new_article: dict):
         sent_urls = await UseMySQL.run_sql(
-            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'many_cs_results'",
-            (),
+            "SELECT url FROM sent_urls WHERE service = %s AND category = 'many_cs_results'",
+            (SERVICE_NAME,),
         )
         url = new_article["url"]
         # パースは一回でOK
@@ -308,7 +309,7 @@ class Parser:
             return
         await UseMySQL.run_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-            (url, new_article["title"], new_article["category"], "UDC_Information"),
+            (url, new_article["title"], new_article["category"], SERVICE_NAME),
         )
         await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(url)
         return
@@ -316,8 +317,8 @@ class Parser:
     @staticmethod
     async def parse_hatti_cs_result(new_article: dict):
         sent_urls = await UseMySQL.run_sql(
-            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'hatti_cs_result'",
-            (),
+            "SELECT url FROM sent_urls WHERE service = %s AND category = 'hatti_cs_result'",
+            (SERVICE_NAME,),
         )
         url = new_article["url"]
         category = new_article["category"]
@@ -405,7 +406,7 @@ class Parser:
         )
         await UseMySQL.run_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-            (url, new_article["title"], category, "UDC_Information"),
+            (url, new_article["title"], category, SERVICE_NAME),
         )
         await Logic.send_result_images(images, url, category)
         return
@@ -413,8 +414,8 @@ class Parser:
     @staticmethod
     async def parse_gp_result(new_article: dict):
         sent_urls = await UseMySQL.run_sql(
-            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'gp_result'",
-            (),
+            "SELECT url FROM sent_urls WHERE service = %s AND category = 'gp_result'",
+            (SERVICE_NAME,),
         )
         url = new_article["url"]
         category = new_article["category"]
@@ -454,7 +455,7 @@ class Parser:
         )
         await UseMySQL.run_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-            (url, new_article["title"], category, "UDC_Information"),
+            (url, new_article["title"], category, SERVICE_NAME),
         )
         await Logic.send_result_images(images, url, category)
         return
@@ -462,8 +463,8 @@ class Parser:
     @staticmethod
     async def parse_cs_result(new_article: dict):
         sent_urls = await UseMySQL.run_sql(
-            "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'cs_result'",
-            (),
+            "SELECT url FROM sent_urls WHERE service = %s AND category = 'cs_result'",
+            (SERVICE_NAME,),
         )
         url = new_article["url"]
         category = new_article["category"]
@@ -494,7 +495,7 @@ class Parser:
         )
         await UseMySQL.run_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-            (url, new_article["title"], category, "UDC_Information"),
+            (url, new_article["title"], category, SERVICE_NAME),
         )
         await Logic.send_result_images(images, url, category)
         return
@@ -507,8 +508,8 @@ class Parser:
             return
         is_new_url = (
             await UseMySQL.run_sql(
-                "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'new_card' AND url = %s",
-                (url,),
+                "SELECT url FROM sent_urls WHERE service = %s AND category = 'new_card' AND url = %s",
+                (SERVICE_NAME, url),
             )
             == []
         )
@@ -520,7 +521,7 @@ class Parser:
                     url,
                     new_article["title"],
                     new_article["category"],
-                    "UDC_Information",
+                    SERVICE_NAME,
                 ),
             )
         newcard_img_divs = soup.find_all("div", class_="card_image")
@@ -549,8 +550,8 @@ class Parser:
             return
         is_new_url = (
             await UseMySQL.run_sql(
-                "SELECT url FROM sent_urls WHERE service = 'UDC_Information' AND category = 'stream' AND url = %s",
-                (url,),
+                "SELECT url FROM sent_urls WHERE service = %s AND category = 'stream' AND url = %s",
+                (SERVICE_NAME, url),
             )
             == []
         )
@@ -562,7 +563,7 @@ class Parser:
                     url,
                     new_article["title"],
                     new_article["category"],
-                    "UDC_Information",
+                    SERVICE_NAME,
                 ),
             )
         streamed_imgs = soup.find("div", class_="EntryMore").find_all("img")
