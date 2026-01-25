@@ -19,7 +19,6 @@ API_BASE_URL = "https://ockvhiwjud.execute-api.ap-northeast-1.amazonaws.com/prod
 IMAGE_BASE_URL = "https://storage.googleapis.com/ka-nabell-card-images/img/card/"
 
 
-
 def height(i):
     n = i // 3 + 1
     return 297 - margin_tp - (n * (card_h + margin))
@@ -94,14 +93,16 @@ def crop(image):  # 引数は画像
     pil_img = cv2img2pil(cropped_img)
     return compress_image(pil_img)
 
+
 def getDeckId(url) -> str | None:
     """URLからデッキIDを取得する"""
     try:
         query = urlparse(url).query
         params = parse_qs(query)
-        return params.get('tcgrevo_deck_maker_deck_id', [None])[0]
+        return params.get("tcgrevo_deck_maker_deck_id", [None])[0]
     except Exception:
         return None
+
 
 def getJsonData(deck_id) -> dict | None:
     """デッキIDからデッキデータを取得する"""
@@ -113,9 +114,11 @@ def getJsonData(deck_id) -> dict | None:
     except Exception:
         return None
 
+
 def getImageUrl(id_url: str) -> str:
     """カードIDから画像URLを取得する"""
     return IMAGE_BASE_URL + id_url
+
 
 def getImageUrlsFromJson(card_infos: list) -> list[str]:
     """デッキデータから画像URLリストを取得する"""
@@ -125,6 +128,7 @@ def getImageUrlsFromJson(card_infos: list) -> list[str]:
         if img_url:
             card_urls.append(getImageUrl(img_url))
     return card_urls
+
 
 def getImageUrlList(deck_url: str) -> tuple | None:
     """デッキURLから画像URLリストを取得する"""
@@ -139,31 +143,43 @@ def getImageUrlList(deck_url: str) -> tuple | None:
     extra_cards = data.get("dmDeck", {}).get("hyper_spatial_cards", [])
     if not main_cards:
         return None
-    return getImageUrlsFromJson(main_cards), getImageUrlsFromJson(gr_cards), getImageUrlsFromJson(extra_cards)
+    return (
+        getImageUrlsFromJson(main_cards),
+        getImageUrlsFromJson(gr_cards),
+        getImageUrlsFromJson(extra_cards),
+    )
+
 
 def make_pdf_binary_from_images(image_urls: list):
-  buffer = BytesIO()
-  page = canvas.Canvas(buffer, pagesize=portrait(A4))
+    buffer = BytesIO()
+    page = canvas.Canvas(buffer, pagesize=portrait(A4))
 
-  for i in range(0, len(image_urls), 9):
-    for j in range(9):
-      if i + j < len(image_urls):
-        page.drawImage(image_urls[i + j], width(j) * mm, height(j) * mm, card_w * mm, card_h * mm)
-    page.showPage()
-  page.save()
-  buffer.seek(0)
-  return buffer
+    for i in range(0, len(image_urls), 9):
+        for j in range(9):
+            if i + j < len(image_urls):
+                page.drawImage(
+                    image_urls[i + j],
+                    width(j) * mm,
+                    height(j) * mm,
+                    card_w * mm,
+                    card_h * mm,
+                )
+        page.showPage()
+    page.save()
+    buffer.seek(0)
+    return buffer
+
 
 def generate_pdf_binary(url, ngr_option=False, nsp_option=False):
-    #画像URLリストの取得    
+    # 画像URLリストの取得
     print("get image urls")
     main_cards, gr_cards, extra_cards = getImageUrlList(url)
     adextra_cards = []
     if not nsp_option:
         for card in extra_cards:
-            for i in range(1,4):
-                adextra_cards.append(card.split("_")[0] + "_" + str(i+1) + ".jpg")
-  
+            for i in range(1, 4):
+                adextra_cards.append(card.split("_")[0] + "_" + str(i + 1) + ".jpg")
+
     srcs = main_cards
     if not ngr_option:
         srcs += gr_cards
@@ -171,7 +187,7 @@ def generate_pdf_binary(url, ngr_option=False, nsp_option=False):
         srcs += extra_cards
         srcs += adextra_cards
 
-    #画像のダウンロード
+    # 画像のダウンロード
     print("download images")
     imgs = []
     for src in srcs:
@@ -179,7 +195,7 @@ def generate_pdf_binary(url, ngr_option=False, nsp_option=False):
         if r.status_code == 200:
             imgs.append(crop(r.content))
 
-    #pdf作成と画像追加
+    # pdf作成と画像追加
     print("make pdf")
     page = make_pdf_binary_from_images(imgs)
     print("complete")
