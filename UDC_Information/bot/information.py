@@ -319,7 +319,7 @@ class Parser:
         # パースは一回でOK
         if url in sent_urls:
             return
-        # 中身までは見ない(現状)
+        # 中身を見て、大会情報を抜き出す！
         await UseMySQL.run_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
             (url, new_article["title"], new_article["category"], SERVICE_NAME),
