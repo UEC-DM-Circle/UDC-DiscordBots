@@ -78,7 +78,10 @@ class Logic:
                 return "gp_result"
             # https://supersolenoid.jp/blog-entry-42770.html
             return "cs_result"
-        if any(x in title for x in ("が公開", "多数公開", "が判明", "が全種公開", "プレミア公開")):
+        if any(
+            x in title
+            for x in ("が公開", "多数公開", "が判明", "が全種公開", "プレミア公開")
+        ):
             # https://supersolenoid.jp/blog-entry-42669.html
             if "よくある質問" not in title:
                 return "new_card"
@@ -145,8 +148,8 @@ class Logic:
                 continue
             sent = (
                 await UseMySQL.run_sql(
-                    "SELECT url FROM sent_images WHERE service = %s AND (category = 'new_card' OR category = 'stream') AND url = %s",
-                    (SERVICE_NAME, new_info_image),
+                    "SELECT url FROM sent_images WHERE service = %s AND category = %s AND url = %s",
+                    (SERVICE_NAME, category, new_info_image),
                 )
                 != []
             )
