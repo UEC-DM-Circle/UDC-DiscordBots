@@ -59,7 +59,6 @@ class UseMySQL:
 
 
 class Logic:
-
     @staticmethod
     async def judge_category(title: str) -> str:
         if "入賞数ランキング" in title:
