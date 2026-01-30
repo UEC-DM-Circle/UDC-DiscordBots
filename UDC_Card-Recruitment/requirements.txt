@@ -1,3 +1,4 @@
 py-cord
 discord.py
 mysql-connector-python
+cryptography
