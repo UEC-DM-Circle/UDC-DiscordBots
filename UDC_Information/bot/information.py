@@ -80,7 +80,14 @@ class Logic:
             return "cs_result"
         if any(
             x in title
-            for x in ("が公開", "多数公開", "が判明", "が全種公開", "プレミア公開")
+            for x in (
+                "が公開",
+                "多数公開",
+                "が判明",
+                "が全種公開",
+                "プレミア公開",
+                "』公開",
+            )
         ):
             # https://supersolenoid.jp/blog-entry-42669.html
             if "よくある質問" not in title:
