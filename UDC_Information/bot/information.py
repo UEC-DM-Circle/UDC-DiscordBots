@@ -261,6 +261,16 @@ class Crawler:
         )
 
     @classmethod
+    async def get_title(cls, url: str) -> str:
+        soup = await cls.try_to_get_soup(url)
+        if soup == "FAILED":
+            return ""
+        title_tag = soup.find("title")
+        if title_tag:
+            return title_tag.text.strip()
+        return ""
+
+    @classmethod
     async def get_new_articles(cls) -> list:
         soup = await cls.try_to_get_soup(TARGET_URL)
         if soup == "FAILED":
@@ -317,21 +327,80 @@ class Parser:
         return
 
     @staticmethod
-    async def parse_many_cs_results(new_article: dict):
-        sent_urls = await UseMySQL.run_sql(
-            "SELECT url FROM sent_urls WHERE service = %s AND category = 'many_cs_results'",
-            (SERVICE_NAME,),
+    async def parse_soup_of_many_cs_results(soup: BeautifulSoup) -> list:
+        entries = soup.find("div", class_="EntryMore")
+        overviews_or_embed_tweets = entries.find_all(
+            ["div", "blockquote"], attrs={"class": ["caption_white", "twitter-tweet"]}
         )
+        cs_results = []
+        for overview_or_embed_tweet in overviews_or_embed_tweets:
+            if "caption_white" in overview_or_embed_tweet.get("class", []):
+                # 大会概要
+                for br in overview_or_embed_tweet.find_all("br"):
+                    br.replace_with("\n")
+                result_sentence = overview_or_embed_tweet.text.strip()
+                cs_results.append(
+                    {
+                        "result_sentence": result_sentence,
+                        "result_tweets": [],
+                        "tweet_texts": [],
+                    }
+                )
+            elif "twitter-tweet" in overview_or_embed_tweet.get("class", []):
+                # 埋め込みツイート
+                for br in overview_or_embed_tweet.find_all("br"):
+                    br.replace_with(" ")
+                a_tags = overview_or_embed_tweet.find_all("a")
+                tweet_urls = [
+                    a_tag.get("href").split("?")[0]
+                    for a_tag in a_tags
+                    if a_tag.get("href") is not None
+                    and not a_tag.get("href").startswith("https://twitter.com/hashtag/")
+                    and not a_tag.get("href").startswith("https://t.co/")
+                ]
+                tweet_texts = overview_or_embed_tweet.find_all("p")
+                tweet_texts = [tweet_text.text.strip() for tweet_text in tweet_texts]
+                if tweet_urls:
+                    cs_results[-1]["result_tweets"] += tweet_urls
+                    cs_results[-1]["tweet_texts"] += tweet_texts
+        return cs_results
+
+    @staticmethod
+    async def parse_many_cs_results(new_article: dict):
         url = new_article["url"]
+        category = new_article["category"]
+        sent = (
+            await UseMySQL.run_sql(
+                "SELECT url FROM sent_urls WHERE service = %s AND category = 'many_cs_results' AND url = %s",
+                (SERVICE_NAME, url),
+            )
+            != []
+        )
         # パースは一回でOK
-        if url in sent_urls:
+        if sent:
             return
         # 中身を見て、大会情報を抜き出す！
+        soup = await Crawler.try_to_get_soup(url)
+        await Crawler.register_crawl(url, "HTTP_GET")
+        if soup == "FAILED":
+            return
+        cs_results = await Parser.parse_soup_of_many_cs_results(soup)
+        for cs_result in cs_results:
+            await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(
+                cs_result["result_sentence"]
+            )
+            for tweet_url, tweet_text in zip(
+                cs_result["result_tweets"], cs_result["tweet_texts"]
+            ):
+                await UseMySQL.run_sql(
+                    "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
+                    (tweet_url, tweet_text, category, SERVICE_NAME),
+                )
+                await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(tweet_url)
         await UseMySQL.run_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-            (url, new_article["title"], new_article["category"], SERVICE_NAME),
+            (url, new_article["title"], category, SERVICE_NAME),
         )
-        await client.get_channel(DISCORD_RESULT_CHANNEL_ID).send(url)
         return
 
     @staticmethod
