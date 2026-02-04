@@ -609,10 +609,6 @@ class Parser:
     @staticmethod
     async def parse_gold_treasure(new_article: dict):
         url = new_article["url"]
-        soup = await Crawler.try_to_get_soup(url)
-        if soup == "FAILED":
-            return
-        await Crawler.register_crawl(url, "HTTP_GET")
         sent = (
             await UseMySQL.run_sql(
                 "SELECT url FROM sent_urls WHERE service = %s AND category = 'new_card' AND url = %s",
@@ -632,6 +628,10 @@ class Parser:
                 SERVICE_NAME,
             ),
         )
+        soup = await Crawler.try_to_get_soup(url)
+        if soup == "FAILED":
+            return
+        await Crawler.register_crawl(url, "HTTP_GET")
         newcard_img_divs = soup.find_all("div", class_="card_image")
         newcard_images = []
         for newcard_img_div in newcard_img_divs:
@@ -654,10 +654,6 @@ class Parser:
     @staticmethod
     async def parse_new_card(new_article: dict):
         url = new_article["url"]
-        soup = await Crawler.try_to_get_soup(url)
-        if soup == "FAILED":
-            return
-        await Crawler.register_crawl(url, "HTTP_GET")
         category = new_article["category"]
         sent = (
             await UseMySQL.run_sql(
@@ -678,6 +674,10 @@ class Parser:
                 SERVICE_NAME,
             ),
         )
+        soup = await Crawler.try_to_get_soup(url)
+        if soup == "FAILED":
+            return
+        await Crawler.register_crawl(url, "HTTP_GET")
         newcard_images = []
         # 以下をデネブログ用に修正
         await Logic.send_new_info_images(newcard_images, url, category)
@@ -685,10 +685,6 @@ class Parser:
 
     async def parse_stream(new_article: dict):
         url = new_article["url"]
-        soup = await Crawler.try_to_get_soup(url)
-        if soup == "FAILED":
-            return
-        await Crawler.register_crawl(url, "HTTP_GET")
         is_new_url = (
             await UseMySQL.run_sql(
                 "SELECT url FROM sent_urls WHERE service = %s AND category = 'stream' AND url = %s",
@@ -707,6 +703,10 @@ class Parser:
                     SERVICE_NAME,
                 ),
             )
+        soup = await Crawler.try_to_get_soup(url)
+        if soup == "FAILED":
+            return
+        await Crawler.register_crawl(url, "HTTP_GET")
         streamed_images = []
         # 以下をデネブログ用に修正
         await Logic.send_new_info_images(streamed_images, url, new_article["category"])
