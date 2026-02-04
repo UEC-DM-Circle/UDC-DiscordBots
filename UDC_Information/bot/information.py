@@ -601,15 +601,6 @@ class Parser:
         # パースは一回でOK
         if await Logic.judge_iscrawled(url, category):
             return
-        await UseMySQL.run_sql(
-            "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-            (
-                url,
-                new_article["title"],
-                category,
-                SERVICE_NAME,
-            ),
-        )
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
             return
@@ -629,16 +620,7 @@ class Parser:
                 for newcard_img in newcard_img_divs
                 if newcard_img.get("src") is not None
             ]
-        newcard_images = list(set(newcard_images))
-        await Logic.send_new_info_images(newcard_images, url, category)
-        return
-
-    @staticmethod
-    async def parse_new_card(new_article: dict):
-        url = new_article["url"]
-        category = new_article["category"]
-        # パースは一回でOK
-        if await Logic.judge_iscrawled(url, category):
+        if newcard_images == []:
             return
         await UseMySQL.run_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
@@ -649,12 +631,44 @@ class Parser:
                 SERVICE_NAME,
             ),
         )
+        await Logic.send_new_info_images(list(set(newcard_images)), url, category)
+        return
+
+    @staticmethod
+    async def parse_deneblog_images(url: str) -> list:
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
-            return
+            return []
         await Crawler.register_crawl(url, "HTTP_GET")
-        newcard_images = []
-        # 以下をデネブログ用に修正
+        tablebox_div = soup.find("div", id="tablebox")
+        if tablebox_div is None:
+            return []
+        deneblog_images = [
+            img.get("src")
+            for img in tablebox_div.find_all("img")
+            if img.get("src") is not None
+        ]
+        return deneblog_images
+
+    @staticmethod
+    async def parse_new_card(new_article: dict):
+        url = new_article["url"]
+        category = new_article["category"]
+        # パースは一回でOK
+        if await Logic.judge_iscrawled(url, category):
+            return
+        newcard_images = await Parser.parse_deneblog_images(url)
+        if newcard_images == []:
+            return
+        await UseMySQL.run_sql(
+            "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
+            (
+                url,
+                new_article["title"],
+                category,
+                SERVICE_NAME,
+            ),
+        )
         await Logic.send_new_info_images(newcard_images, url, category)
         return
 
@@ -672,12 +686,9 @@ class Parser:
                     SERVICE_NAME,
                 ),
             )
-        soup = await Crawler.try_to_get_soup(url)
-        if soup == "FAILED":
+        streamed_images = await Parser.parse_deneblog_images(url)
+        if streamed_images == []:
             return
-        await Crawler.register_crawl(url, "HTTP_GET")
-        streamed_images = []
-        # 以下をデネブログ用に修正
         await Logic.send_new_info_images(streamed_images, url, category)
         return
 
