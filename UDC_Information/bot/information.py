@@ -20,6 +20,8 @@ class Information:
         match category:
             case "ranking":
                 ranking_img = await Parser.parse_ranking(new_article)
+                if not ranking_img:
+                    return
                 await Information.send_message(DISCORD_INFO_CHANNEL_ID, ranking_img)
             case "many_cs_results":
                 many_cs_results = await Parser.parse_many_cs_results(new_article)
