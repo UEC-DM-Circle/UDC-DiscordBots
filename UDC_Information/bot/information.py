@@ -101,6 +101,9 @@ class Logic:
 
     @staticmethod
     async def judge_deneblog_category(title: str) -> str:
+        # デネブログでは金トレジャーをパースしない
+        if "金トレジャー" in title:
+            return "etc"
         if any(x in title for x in ("新カード", "》", "神アート")):
             # https://deneblog.jp/blog-entry-22499.html
             # https://deneblog.jp/blog-entry-22329.html
