@@ -299,7 +299,7 @@ class Crawler:
         if soup == "FAILED":
             return []
         await cls.register_crawl(DENEBLOG_URL, "HTTP_GET")
-        main_div = soup.find("div", class_="main")
+        main_div = soup.find("div", id="main")
         titles = main_div.find_all("h1", class_="ently_title")
         new_articles = []
         for title in titles:
@@ -718,6 +718,8 @@ async def test(ctx):
 @client.event
 async def on_ready():
     global task
+    print(os.getenv("DB_HOST"))
+    print(os.getenv("DB_USER"))
     await Crawler.init_session()
     await UseMySQL.init_pool()
     print("Bot is ready!")
