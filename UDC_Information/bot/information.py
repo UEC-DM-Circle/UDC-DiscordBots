@@ -60,6 +60,11 @@ class UseMySQL:
 
 
 class Logic:
+    @staticmethod
+    async def judge_isimage(url: str) -> bool:
+        return url.startswith("https") and any(
+            ext in url for ext in (".jpg", ".jpeg", ".png", ".gif")
+        )
 
     @staticmethod
     async def judge_denen_category(title: str) -> str:
@@ -184,13 +189,6 @@ class Logic:
             await client.get_channel(DISCORD_NEWCARD_CHANNEL_ID).send(new_info_image)
         return
 
-    # 上に持ってくる
-    @staticmethod
-    async def judge_isimage(url: str) -> bool:
-        return url.startswith("https") and any(
-            ext in url for ext in (".jpg", ".jpeg", ".png", ".gif")
-        )
-
 
 class Crawler:
     session: aiohttp.ClientSession | None = None
@@ -227,7 +225,8 @@ class Crawler:
             size = await cls.get_image_size(url)
             if size != "ERROR":
                 return size
-        return (0, 0)  # サイズが見つからない場合は(0, 0)を返す
+        # サイズが見つからない場合は(0, 0)を返す
+        return (0, 0)
 
     @classmethod
     async def get_soup(cls, url: str) -> BeautifulSoup | str:
@@ -301,6 +300,7 @@ class Crawler:
             title_text = title.text
             category = await Logic.judge_deneblog_category(title_text)
             new_articles.append({"url": url, "title": title_text, "category": category})
+        return new_articles
 
 
 class Parser:
@@ -678,22 +678,8 @@ class Parser:
                 SERVICE_NAME,
             ),
         )
-        newcard_img_divs = soup.find_all("div", class_="card_image")
         newcard_images = []
-        for newcard_img_div in newcard_img_divs:
-            img_tags = newcard_img_div.find_all("img")
-            for img_tag in img_tags:
-                img_src = img_tag.get("src")
-                if img_src:
-                    newcard_images.append(img_src)
-        if newcard_images == []:
-            newcard_img_divs = soup.find("div", class_="EntryMore").find_all("img")
-            newcard_images = [
-                newcard_img.get("src")
-                for newcard_img in newcard_img_divs
-                if newcard_img.get("src") is not None
-            ]
-        newcard_images = list(set(newcard_images))
+        # 以下をデネブログ用に修正
         await Logic.send_new_info_images(newcard_images, url, category)
         return
 
@@ -721,12 +707,8 @@ class Parser:
                     SERVICE_NAME,
                 ),
             )
-        streamed_imgs = soup.find("div", class_="EntryMore").find_all("img")
-        streamed_images = [
-            streamed_img.get("src")
-            for streamed_img in streamed_imgs
-            if streamed_img.get("src") is not None
-        ]
+        streamed_images = []
+        # 以下をデネブログ用に修正
         await Logic.send_new_info_images(streamed_images, url, new_article["category"])
         return
 
