@@ -67,7 +67,7 @@ class Logic:
         )
 
     @staticmethod
-    async def judge_is_crawled_url(url: str, category: str) -> bool:
+    async def judge_iscrawled(url: str, category: str) -> bool:
         return (
             await UseMySQL.run_sql(
                 "SELECT url FROM sent_urls WHERE service = %s AND category = %s AND url = %s",
@@ -320,7 +320,7 @@ class Parser:
         url = new_article["url"]
         category = new_article["category"]
         # パースは一回でOK
-        if await Logic.judge_is_crawled_url(url, category):
+        if await Logic.judge_iscrawled(url, category):
             return
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
@@ -391,7 +391,7 @@ class Parser:
         url = new_article["url"]
         category = new_article["category"]
         # パースは一回でOK
-        if await Logic.judge_is_crawled_url(url, category):
+        if await Logic.judge_iscrawled(url, category):
             return
         # 中身を見て、大会情報を抜き出す！
         soup = await Crawler.try_to_get_soup(url)
@@ -422,7 +422,7 @@ class Parser:
         url = new_article["url"]
         category = new_article["category"]
         # パースは一回でOK
-        if await Logic.judge_is_crawled_url(url, category):
+        if await Logic.judge_iscrawled(url, category):
             return
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
@@ -516,7 +516,7 @@ class Parser:
         url = new_article["url"]
         category = new_article["category"]
         # パースは一回でOK
-        if await Logic.judge_is_crawled_url(url, category):
+        if await Logic.judge_iscrawled(url, category):
             return
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
@@ -562,7 +562,7 @@ class Parser:
         url = new_article["url"]
         category = new_article["category"]
         # パースは一回でOK
-        if await Logic.judge_is_crawled_url(url, category):
+        if await Logic.judge_iscrawled(url, category):
             return
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
@@ -599,7 +599,7 @@ class Parser:
         url = new_article["url"]
         category = "new_card"
         # パースは一回でOK
-        if await Logic.judge_is_crawled_url(url, category):
+        if await Logic.judge_iscrawled(url, category):
             return
         await UseMySQL.run_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
@@ -638,7 +638,7 @@ class Parser:
         url = new_article["url"]
         category = new_article["category"]
         # パースは一回でOK
-        if await Logic.judge_is_crawled_url(url, category):
+        if await Logic.judge_iscrawled(url, category):
             return
         await UseMySQL.run_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
@@ -662,7 +662,7 @@ class Parser:
         url = new_article["url"]
         category = new_article["category"]
         # 1回だけ追加する
-        if not await Logic.judge_is_crawled_url(url, category):
+        if not await Logic.judge_iscrawled(url, category):
             await UseMySQL.run_sql(
                 "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
                 (
