@@ -1,6 +1,7 @@
 from common import *
 from use_mysql import UseMySQL
 from crawler import Crawler
+from parser import Parser
 from logic import Logic
 
 intent = discord.Intents.default()
@@ -10,6 +11,110 @@ task = None
 
 
 class Information:
+    # 各々切り分けてね
+    @staticmethod
+    async def decide_parser(new_article: dict):
+        url = new_article["url"]
+        title = new_article["title"]
+        category = new_article["category"]
+        match category:
+            case "ranking":
+                ranking_img = await Parser.parse_ranking(new_article)
+                await Information.send_message(DISCORD_INFO_CHANNEL_ID, ranking_img)
+            case "many_cs_results":
+                many_cs_results = await Parser.parse_many_cs_results(new_article)
+                if not many_cs_results:
+                    return
+                for cs_result in many_cs_results:
+                    await Information.send_message(
+                        DISCORD_RESULT_CHANNEL_ID, cs_result["result_sentence"]
+                    )
+                    for tweet_url, tweet_text in zip(
+                        cs_result["result_tweets"], cs_result["tweet_texts"]
+                    ):
+                        await UseMySQL.run_sql(
+                            "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
+                            (
+                                tweet_url,
+                                tweet_text,
+                                category,
+                                SERVICE_NAME,
+                            ),
+                        )
+                        await Information.send_message(
+                            DISCORD_RESULT_CHANNEL_ID, tweet_url
+                        )
+                await UseMySQL.run_sql(
+                    "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
+                    (url, title, category, SERVICE_NAME),
+                )
+            case "hatti_cs_result":
+                message, result_images = await Parser.parse_hatti_cs_result(new_article)
+                if not message or not result_images:
+                    return
+                await UseMySQL.run_sql(
+                    "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
+                    (url, title, category, SERVICE_NAME),
+                )
+                await Information.send_message(DISCORD_RESULT_CHANNEL_ID, message)
+                await Information.send_result_images(result_images, url, category)
+            case "gp_result":
+                message, result_images = await Parser.parse_gp_result(new_article)
+                if not message or not result_images:
+                    return
+                await Information.send_message(DISCORD_RESULT_CHANNEL_ID, message)
+                await UseMySQL.run_sql(
+                    "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
+                    (url, title, category, SERVICE_NAME),
+                )
+                await Information.send_result_images(result_images, url, category)
+            case "cs_result":
+                message, result_images = await Parser.parse_cs_result(new_article)
+                if not message or not result_images:
+                    return
+                await Information.send_message(DISCORD_RESULT_CHANNEL_ID, message)
+                await UseMySQL.run_sql(
+                    "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
+                    (url, title, category, SERVICE_NAME),
+                )
+                await Information.send_result_images(result_images, url, category)
+            case "gold_treasure":
+                newcard_images = await Parser.parse_gold_treasure(new_article)
+                if not newcard_images:
+                    return
+                await UseMySQL.run_sql(
+                    "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
+                    (
+                        url,
+                        title,
+                        category,
+                        SERVICE_NAME,
+                    ),
+                )
+                await Information.send_new_info_images(newcard_images, url, category)
+            case "new_card":
+                newcard_images = await Parser.parse_new_card(new_article)
+                if not newcard_images:
+                    return
+                await UseMySQL.run_sql(
+                    "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
+                    (
+                        url,
+                        title,
+                        category,
+                        SERVICE_NAME,
+                    ),
+                )
+                await Information.send_new_info_images(newcard_images, url, category)
+            case "stream":
+                streamed_images = await Parser.parse_stream(new_article)
+                if streamed_images == []:
+                    return
+                await Information.send_new_info_images(streamed_images, url, category)
+                return
+            case "etc":
+                pass
+
     @staticmethod
     async def send_result_images(result_images: list, url: str, category: str):
         for result_image in result_images:
@@ -77,8 +182,8 @@ class Information:
         return
 
     @staticmethod
-    async def send_message(channel_id: int, msg: str):
-        await client.get_channel(channel_id).send(msg)
+    async def send_message(channel_id: int, message: str):
+        await client.get_channel(channel_id).send(message)
 
 
 async def main():
@@ -87,10 +192,10 @@ async def main():
             # 田園補完計画→デネブログの順
             denen_new_articles = await Crawler.get_new_denen_articles()
             for denen_new_article in denen_new_articles:
-                await Logic.decide_parser(denen_new_article)
+                await Information.decide_parser(denen_new_article)
             deneblog_new_articles = await Crawler.get_new_deneblog_articles()
             for deneblog_new_article in deneblog_new_articles:
-                await Logic.decide_parser(deneblog_new_article)
+                await Information.decide_parser(deneblog_new_article)
         except Exception as e:
             print(f"Error: {e}")
             traceback.print_exc()

@@ -1,7 +1,5 @@
 from common import *
 from use_mysql import UseMySQL
-from crawler import *
-from parser import *
 
 
 class Logic:
@@ -57,25 +55,3 @@ class Logic:
             # https://deneblog.jp/blog-entry-22388.html
             return "stream"
         return "etc"
-
-    @staticmethod
-    async def decide_parser(new_article: dict):
-        match new_article["category"]:
-            case "ranking":
-                await Parser.parse_ranking(new_article)
-            case "many_cs_results":
-                await Parser.parse_many_cs_results(new_article)
-            case "hatti_cs_result":
-                await Parser.parse_hatti_cs_result(new_article)
-            case "gp_result":
-                await Parser.parse_gp_result(new_article)
-            case "cs_result":
-                await Parser.parse_cs_result(new_article)
-            case "gold_treasure":
-                await Parser.parse_gold_treasure(new_article)
-            case "new_card":
-                await Parser.parse_new_card(new_article)
-            case "stream":
-                await Parser.parse_stream(new_article)
-            case "etc":
-                pass

@@ -2,13 +2,12 @@ from common import *
 from use_mysql import UseMySQL
 from crawler import Crawler
 from logic import Logic
-from information import Information
 
 
 class Parser:
     # 全体的に共通部分をまとめる
     @staticmethod
-    async def parse_ranking(new_article: dict):
+    async def parse_ranking(new_article: dict) -> str:
         url = new_article["url"]
         category = new_article["category"]
         # パースは一回でOK
@@ -36,8 +35,7 @@ class Parser:
                 ranking_image_size[1],
             ),
         )
-        await Information.send_message(DISCORD_INFO_CHANNEL_ID, ranking_img)
-        return
+        return ranking_img
 
     @staticmethod
     async def parse_soup_of_many_cs_results(soup: BeautifulSoup) -> list:
@@ -79,7 +77,7 @@ class Parser:
         return cs_results
 
     @staticmethod
-    async def parse_many_cs_results(new_article: dict):
+    async def parse_many_cs_results(new_article: dict) -> list:
         url = new_article["url"]
         category = new_article["category"]
         # パースは一回でOK
@@ -90,24 +88,7 @@ class Parser:
         await Crawler.register_crawl(url, "HTTP_GET")
         if soup == "FAILED":
             return
-        cs_results = await Parser.parse_soup_of_many_cs_results(soup)
-        for cs_result in cs_results:
-            await Information.send_message(
-                DISCORD_RESULT_CHANNEL_ID, cs_result["result_sentence"]
-            )
-            for tweet_url, tweet_text in zip(
-                cs_result["result_tweets"], cs_result["tweet_texts"]
-            ):
-                await UseMySQL.run_sql(
-                    "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-                    (tweet_url, tweet_text, category, SERVICE_NAME),
-                )
-                await Information.send_message(DISCORD_RESULT_CHANNEL_ID, tweet_url)
-        await UseMySQL.run_sql(
-            "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-            (url, new_article["title"], category, SERVICE_NAME),
-        )
-        return
+        return await Parser.parse_soup_of_many_cs_results(soup)
 
     @staticmethod
     async def parse_hatti_cs_result(new_article: dict):
@@ -193,15 +174,7 @@ class Parser:
             new_article["category"] = "cs_result"
             await Parser.parse_cs_result(new_article)
             return
-        await Information.send_message(
-            DISCORD_RESULT_CHANNEL_ID, f"{result_sentence}\n\n{names}"
-        )
-        await UseMySQL.run_sql(
-            "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-            (url, new_article["title"], category, SERVICE_NAME),
-        )
-        await Information.send_result_images(images, url, category)
-        return
+        return f"{result_sentence}\n\n{names}", images
 
     @staticmethod
     async def parse_gp_result(new_article: dict):
@@ -236,18 +209,7 @@ class Parser:
         images = [
             img.find("img").get("src") for img in imgs if img.find("img") is not None
         ]
-        if images == []:
-            # デッキ画像がない
-            return
-        await Information.send_message(
-            DISCORD_RESULT_CHANNEL_ID, f"{result_sentence}\n\n{names}\n\n{distribution}"
-        )
-        await UseMySQL.run_sql(
-            "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-            (url, new_article["title"], category, SERVICE_NAME),
-        )
-        await Information.send_result_images(images, url, category)
-        return
+        return f"{result_sentence}\n\n{names}\n\n{distribution}", images
 
     @staticmethod
     async def parse_cs_result(new_article: dict):
@@ -276,15 +238,7 @@ class Parser:
         images = [
             img.find("img").get("src") for img in imgs if img.find("img") is not None
         ]
-        await Information.send_message(
-            DISCORD_RESULT_CHANNEL_ID, f"{result_sentence}\n\n{names}"
-        )
-        await UseMySQL.run_sql(
-            "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-            (url, new_article["title"], category, SERVICE_NAME),
-        )
-        await Information.send_result_images(images, url, category)
-        return
+        return f"{result_sentence}\n\n{names}", images
 
     @staticmethod
     async def parse_gold_treasure(new_article: dict):
@@ -312,19 +266,7 @@ class Parser:
                 for newcard_img in newcard_img_divs
                 if newcard_img.get("src") is not None
             ]
-        if newcard_images == []:
-            return
-        await UseMySQL.run_sql(
-            "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-            (
-                url,
-                new_article["title"],
-                category,
-                SERVICE_NAME,
-            ),
-        )
-        await Information.send_new_info_images(list(set(newcard_images)), url, category)
-        return
+        return list(set(newcard_images))
 
     @staticmethod
     async def parse_deneblog_images(url: str) -> list:
@@ -340,7 +282,7 @@ class Parser:
             for img in tablebox_div.find_all("img")
             if img.get("src") is not None
         ]
-        return deneblog_images
+        return list(set(deneblog_images))
 
     @staticmethod
     async def parse_new_card(new_article: dict):
@@ -349,20 +291,7 @@ class Parser:
         # パースは一回でOK
         if await Logic.judge_iscrawled(url, category):
             return
-        newcard_images = await Parser.parse_deneblog_images(url)
-        if newcard_images == []:
-            return
-        await UseMySQL.run_sql(
-            "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-            (
-                url,
-                new_article["title"],
-                category,
-                SERVICE_NAME,
-            ),
-        )
-        await Information.send_new_info_images(newcard_images, url, category)
-        return
+        return await Parser.parse_deneblog_images(url)
 
     async def parse_stream(new_article: dict):
         url = new_article["url"]
@@ -378,8 +307,4 @@ class Parser:
                     SERVICE_NAME,
                 ),
             )
-        streamed_images = await Parser.parse_deneblog_images(url)
-        if streamed_images == []:
-            return
-        await Information.send_new_info_images(streamed_images, url, category)
-        return
+        return await Parser.parse_deneblog_images(url)
