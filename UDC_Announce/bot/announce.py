@@ -1,5 +1,5 @@
 from common import *
-from use_mysql import *
+from use_mysql import UseMySQL
 
 intent = discord.Intents.default()
 intent.message_content = True
@@ -83,7 +83,7 @@ class Announce:
     async def check_on_ready():
         # 起動時にアナウンスできてないものがあればアナウンスする
         now = datetime.datetime.now()
-        if 6 <= now.hour < 18:
+        if 0 <= now.hour < 18:
             await Announce.announce_today()
         else:
             await Announce.announce_tomorrow()
