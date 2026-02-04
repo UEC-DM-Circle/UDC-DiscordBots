@@ -1,15 +1,21 @@
-from pdfgene import generate_pdf_binary
 import os
 import re
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
+from pdfgene import generate_pdf_binary
 
 load_dotenv()
 TOKEN = os.getenv("TOKEN")
 GENERATE = int(os.getenv("GENERATE"))
 TEST = int(os.getenv("TEST"))
 pdf_name = "artifact.pdf"
+
+GENERATE_CHANNEL_ID = int(os.getenv("GENERATE_CHANNEL_ID"))
+TEST_CHANNEL_ID = int(os.getenv("TEST_CHANNEL_ID"))
+PDF_NAME = "artifact.pdf"
+# Bot定義
+client = commands.Bot(command_prefix="!", intents=discord.Intents.all())
 
 
 def legal_url(url: str):
@@ -46,6 +52,19 @@ async def pdfmake(ctx, *args):
             nsp_option = True
         elif arg.startswith("http"):
             url = arg
+    if ctx.channel.id not in [TEST_CHANNEL_ID, GENERATE_CHANNEL_ID]:
+        await ctx.send("専用のチャンネルで実行してください")
+        return
+    url = None
+    ngr_option = False
+    nsp_option = False
+    for arg in args:
+        if arg == "-ngr":
+            ngr_option = True
+        elif arg == "-nsp":
+            nsp_option = True
+        elif arg.startswith("http"):
+            url = arg
 
     if not legal_url(url):
         print("illegal")
@@ -55,6 +74,10 @@ async def pdfmake(ctx, *args):
     await ctx.send("生成中です")
     pdf_binary = generate_pdf_binary(url, ngr_option, nsp_option)
     await ctx.send(file=discord.File(fp=pdf_binary, filename=pdf_name))
+    await ctx.send(f"{ctx.author.mention} 生成完了しました")
+    await ctx.send("生成中です")
+    pdf_binary = generate_pdf_binary(url, ngr_option, nsp_option)
+    await ctx.send(file=discord.File(fp=pdf_binary, filename=PDF_NAME))
     await ctx.send(f"{ctx.author.mention} 生成完了しました")
 
 
