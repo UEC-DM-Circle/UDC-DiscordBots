@@ -89,9 +89,6 @@ def crop_img(image: bytes) -> ImageReader:  # 引数は画像のバイトデー�
     return compress_image(pil_img)
 
 
-def getDeckId(url) -> str | None:
-    """URLからデッキIDを取得する"""
-
 def get_deck_id(url: str) -> str | None:
     # URLからデッキIDを取得する
     try:
@@ -101,9 +98,6 @@ def get_deck_id(url: str) -> str | None:
     except Exception:
         return None
 
-
-def getJsonData(deck_id) -> dict | None:
-    """デッキIDからデッキデータを取得する"""
 
 def get_json_data(deck_id: str) -> dict | None:
     # デッキIDからデッキデータを取得する
@@ -116,16 +110,10 @@ def get_json_data(deck_id: str) -> dict | None:
         return None
 
 
-def getImageUrl(id_url: str) -> str:
-    """カードIDから画像URLを取得する"""
-
 def get_image_url(id_url: str) -> str:
     # カードIDから画像URLを取得する
     return IMAGE_BASE_URL + id_url
 
-
-def getImageUrlsFromJson(card_infos: list) -> list[str]:
-    """デッキデータから画像URLリストを取得する"""
 
 def get_image_urls_from_json(card_infos: list) -> list[str]:
     # デッキデータから画像URLリストを取得する
@@ -136,10 +124,6 @@ def get_image_urls_from_json(card_infos: list) -> list[str]:
             card_urls.append(get_image_url(img_url))
     return card_urls
 
-
-def getImageUrlList(deck_url: str) -> tuple | None:
-    """デッキURLから画像URLリストを取得する"""
-    deck_id = getDeckId(deck_url)
 
 def get_image_url_list(deck_url: str) -> tuple | None:
     # デッキURLから画像URLリストを取得する
@@ -155,39 +139,16 @@ def get_image_url_list(deck_url: str) -> tuple | None:
     if not main_cards:
         return None
     return (
-        getImageUrlsFromJson(main_cards),
-        getImageUrlsFromJson(gr_cards),
-        getImageUrlsFromJson(extra_cards),
-    )
-
-    return (
         get_image_urls_from_json(main_cards),
         get_image_urls_from_json(gr_cards),
         get_image_urls_from_json(extra_cards),
     )
 
 
-def make_pdf_binary_from_images(image_urls: list):
-    buffer = BytesIO()
-    page = canvas.Canvas(buffer, pagesize=portrait(A4))
 def make_pdf_binary_from_images(image_urls: list) -> BytesIO:
     buffer = BytesIO()
     page = canvas.Canvas(buffer, pagesize=portrait(A4))
 
-    for i in range(0, len(image_urls), 9):
-        for j in range(9):
-            if i + j < len(image_urls):
-                page.drawImage(
-                    image_urls[i + j],
-                    width(j) * mm,
-                    height(j) * mm,
-                    card_w * mm,
-                    card_h * mm,
-                )
-        page.showPage()
-    page.save()
-    buffer.seek(0)
-    return buffer
     for i in range(0, len(image_urls), 9):
         for j in range(9):
             if i + j < len(image_urls):
@@ -204,9 +165,6 @@ def make_pdf_binary_from_images(image_urls: list) -> BytesIO:
     return buffer
 
 
-def generate_pdf_binary(url, ngr_option=False, nsp_option=False):
-    # 画像URLリストの取得
-
 def generate_pdf_binary(url, ngr_option=False, nsp_option=False) -> BytesIO:
     # 画像URLリストの取得
     print("get image urls")
@@ -214,9 +172,6 @@ def generate_pdf_binary(url, ngr_option=False, nsp_option=False) -> BytesIO:
     advance_extra_cards = []
     if not nsp_option:
         for card in extra_cards:
-            for i in range(1, 4):
-                adextra_cards.append(card.split("_")[0] + "_" + str(i + 1) + ".jpg")
-
             for i in range(1, 4):
                 advance_extra_cards.append(
                     card.split("_")[0] + "_" + str(i + 1) + ".jpg"
@@ -227,9 +182,6 @@ def generate_pdf_binary(url, ngr_option=False, nsp_option=False) -> BytesIO:
         srcs += gr_cards
     if not nsp_option:
         srcs += extra_cards
-        srcs += adextra_cards
-
-    # 画像のダウンロード
         srcs += advance_extra_cards
     # 画像のダウンロード
     print("download images")
@@ -237,9 +189,6 @@ def generate_pdf_binary(url, ngr_option=False, nsp_option=False) -> BytesIO:
     for src in srcs:
         r = requests.get(src)
         if r.status_code == 200:
-            imgs.append(crop(r.content))
-
-    # pdf作成と画像追加
             imgs.append(crop_img(r.content))
     # pdf作成と画像追加
     print("make pdf")
