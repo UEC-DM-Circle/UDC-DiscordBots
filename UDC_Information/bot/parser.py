@@ -82,7 +82,7 @@ class Parser:
         category = new_article["category"]
         # パースは一回でOK
         if await Logic.judge_iscrawled(url, category):
-            return
+            return []
         # 中身を見て、大会情報を抜き出す！
         soup = await Crawler.try_to_get_soup(url)
         await Crawler.register_crawl(url, "HTTP_GET")
@@ -96,10 +96,10 @@ class Parser:
         category = new_article["category"]
         # パースは一回でOK
         if await Logic.judge_iscrawled(url, category):
-            return
+            return "", []
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
-            return
+            return "", []
         await Crawler.register_crawl(url, "HTTP_GET")
         divisions = soup.find_all("div", class_="caption_white")
         result_div = divisions[0]
@@ -182,15 +182,15 @@ class Parser:
         category = new_article["category"]
         # パースは一回でOK
         if await Logic.judge_iscrawled(url, category):
-            return
+            return "", []
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
-            return
+            return "", []
         await Crawler.register_crawl(url, "HTTP_GET")
         divisions = soup.find_all("div", class_="caption_white")
         if len(divisions) < 2:
             # 記事が完成していない
-            return
+            return "", []
         result_div = divisions[0]
         for br in result_div.find_all("br"):
             br.replace_with("\n")
@@ -217,10 +217,10 @@ class Parser:
         category = new_article["category"]
         # パースは一回でOK
         if await Logic.judge_iscrawled(url, category):
-            return
+            return "", []
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
-            return
+            return "", []
         await Crawler.register_crawl(url, "HTTP_GET")
         divisions = soup.find_all("div", class_="caption_white")
         result_div = divisions[0]
@@ -246,10 +246,10 @@ class Parser:
         category = "new_card"
         # パースは一回でOK
         if await Logic.judge_iscrawled(url, category):
-            return
+            return []
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
-            return
+            return []
         await Crawler.register_crawl(url, "HTTP_GET")
         newcard_img_divs = soup.find_all("div", class_="card_image")
         newcard_images = []
@@ -290,7 +290,7 @@ class Parser:
         category = new_article["category"]
         # パースは一回でOK
         if await Logic.judge_iscrawled(url, category):
-            return
+            return []
         return await Parser.parse_deneblog_images(url)
 
     async def parse_stream(new_article: dict):
