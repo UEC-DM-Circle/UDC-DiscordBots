@@ -1,58 +1,15 @@
-import os
-import discord
-from discord.ext import commands
-import mysql.connector
+from common import *
+from use_mysql import UseMySQL
 
-# 初期設定
-TOKEN = os.getenv("TOKEN")
 intent = discord.Intents.default()
 intent.message_content = True
 client = commands.Bot(command_prefix="-", intents=intent)
-channel_id = int(os.environ.get("CHANNEL_ID"))
-test_channel_id = int(os.environ.get("TEST_CHANNEL_ID"))
-
-
-# MySQLの接続設定
-def get_connection():
-    return mysql.connector.connect(
-        host=os.getenv("DB_HOST"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        database=os.getenv("DB_NAME"),
-    )
-
-
-async def run_sql(sql: str, params: tuple):
-    conn = get_connection()
-    cursor = conn.cursor(buffered=True)
-    if params != ():
-        cursor.execute(sql, params)
-    else:
-        cursor.execute(sql)
-    if sql.strip().upper().startswith("SELECT"):
-        result = cursor.fetchall()
-        cursor.close()
-        conn.close()
-        return result
-    else:
-        conn.commit()
-        cursor.close()
-        conn.close()
-        return
 
 
 async def check_channel(ctx):
-    if ctx.channel.id == channel_id or ctx.channel.id == test_channel_id:
+    if ctx.channel.id in [CHANNEL_ID, TEST_CHANNEL_ID]:
         return True
     else:
-        return False
-
-
-async def check_ctx(ctx):
-    if ctx.channel.id == channel_id or ctx.channel.id == test_channel_id:
-        return True
-    else:
-        await ctx.send("このコマンドは指定されたチャンネルでのみ使用できます。")
         return False
 
 
@@ -105,12 +62,12 @@ async def want(ctx, *, args):
                 if card.isdecimal():
                     use_id_flag = True
                     card = int(card)
-                    recruitments = await run_sql(
+                    recruitments = await UseMySQL.run_sql(
                         "SELECT id, person, card, num, active FROM recruitments WHERE person = %s AND id = %s",
                         (person, card),
                     )
                 else:
-                    recruitments = await run_sql(
+                    recruitments = await UseMySQL.run_sql(
                         "SELECT id, person, card, num, active FROM recruitments WHERE person = %s AND card = %s",
                         (person, card),
                     )
@@ -127,12 +84,12 @@ async def want(ctx, *, args):
                             return
                         else:
                             if use_id_flag:
-                                await run_sql(
+                                await UseMySQL.run_sql(
                                     "UPDATE recruitments SET num = %s WHERE person = %s AND id = %s",
                                     (num, person, card),
                                 )
                             else:
-                                await run_sql(
+                                await UseMySQL.run_sql(
                                     "UPDATE recruitments SET num = %s WHERE person = %s AND card = %s",
                                     (num, person, card),
                                 )
@@ -141,7 +98,7 @@ async def want(ctx, *, args):
                             )
                             return
                     else:
-                        await run_sql(
+                        await UseMySQL.run_sql(
                             "UPDATE recruitments SET active = 1, num = %s WHERE person = %s AND card = %s",
                             (num, person, card),
                         )
@@ -151,7 +108,7 @@ async def want(ctx, *, args):
                         return
                 else:
                     # 新規追加
-                    await run_sql(
+                    await UseMySQL.run_sql(
                         "INSERT INTO recruitments (person, card, num) VALUES (%s, %s, %s)",
                         (person, card, num),
                     )
@@ -165,7 +122,7 @@ async def want(ctx, *, args):
 @client.command()
 async def check(ctx, *args):
     if await check_channel(ctx):
-        recruitments = await run_sql(
+        recruitments = await UseMySQL.run_sql(
             "SELECT id, person, card, num FROM recruitments WHERE active = 1",
             (),
         )
@@ -251,7 +208,7 @@ async def end(ctx, *, args):
                     is_id = True
                 else:
                     key = args[1]
-            recruitments = await run_sql(
+            recruitments = await UseMySQL.run_sql(
                 "SELECT id FROM recruitments WHERE person = %s AND active = 1",
                 (name,),
             )
@@ -259,7 +216,7 @@ async def end(ctx, *, args):
                 await ctx.send(f"{name}さんが募集しているカードはありません。")
                 return
             if is_id:
-                recruitment = await run_sql(
+                recruitment = await UseMySQL.run_sql(
                     "SELECT id, card FROM recruitments WHERE person = %s AND id = %s",
                     (name, key),
                 )
@@ -269,7 +226,7 @@ async def end(ctx, *, args):
                     )
                     return
                 card = recruitment[0][1]
-                await run_sql(
+                await UseMySQL.run_sql(
                     "UPDATE recruitments SET active = 0, num = 0 WHERE id = %s",
                     (key,),
                 )
@@ -277,14 +234,14 @@ async def end(ctx, *, args):
                     f"{name}さんが『{card}』 の募集(ID: {key})を終了しました。"
                 )
             else:
-                recruitment = await run_sql(
+                recruitment = await UseMySQL.run_sql(
                     "SELECT id, card FROM recruitments WHERE person = %s AND card = %s",
                     (name, key),
                 )
                 if not recruitment:
                     await ctx.send(f"{name}さんは『{key}』の募集を行っていません。")
                     return
-                await run_sql(
+                await UseMySQL.run_sql(
                     "UPDATE recruitments SET active = 0, num = 0 WHERE person = %s AND card = %s",
                     (name, key),
                 )
