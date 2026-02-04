@@ -105,7 +105,7 @@ class Logic:
             # https://deneblog.jp/blog-entry-22499.html
             # https://deneblog.jp/blog-entry-22329.html
             return "new_card"
-        if "公開された新情報まとめ" in title:
+        if "新情報まとめ" in title:
             # https://deneblog.jp/blog-entry-22388.html
             return "stream"
         return "etc"
