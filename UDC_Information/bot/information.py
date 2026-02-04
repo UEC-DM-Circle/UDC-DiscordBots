@@ -12,7 +12,8 @@ from PIL import Image
 SERVICE_NAME = "UDC_Information"
 TOKEN = os.getenv("TOKEN")
 # クロール対象ページ
-TARGET_URL = "https://supersolenoid.jp/blog-category-12.html"
+DENEN_URL = "https://supersolenoid.jp/blog-category-12.html"
+DENEBLOG_URL = "https://deneblog.jp/blog-category-26.html"
 # 入賞数ランキング
 DISCORD_INFO_CHANNEL_ID = int(os.environ.get("DISCORD_INFO_CHANNEL_ID"))
 # 新カード
@@ -59,9 +60,24 @@ class UseMySQL:
 
 
 class Logic:
+    @staticmethod
+    async def judge_isimage(url: str) -> bool:
+        return url.startswith("https") and any(
+            ext in url for ext in (".jpg", ".jpeg", ".png", ".gif")
+        )
 
     @staticmethod
-    async def judge_category(title: str) -> str:
+    async def judge_iscrawled(url: str, category: str) -> bool:
+        return (
+            await UseMySQL.run_sql(
+                "SELECT url FROM sent_urls WHERE service = %s AND category = %s AND url = %s",
+                (SERVICE_NAME, category, url),
+            )
+            != []
+        )
+
+    @staticmethod
+    async def judge_denen_category(title: str) -> str:
         if "入賞数ランキング" in title:
             return "ranking"
         if "結果" in title:
@@ -78,22 +94,19 @@ class Logic:
                 return "gp_result"
             # https://supersolenoid.jp/blog-entry-42770.html
             return "cs_result"
-        if any(
-            x in title
-            for x in (
-                "が公開",
-                "多数公開",
-                "が判明",
-                "が全種公開",
-                "プレミア公開",
-                "』公開",
-            )
-        ):
-            # https://supersolenoid.jp/blog-entry-42669.html
-            if "よくある質問" not in title:
-                return "new_card"
+        if "金トレジャー" in title:
+            # https://supersolenoid.jp/blog-entry-45189.html
+            return "gold_treasure"
+        return "etc"
+
+    @staticmethod
+    async def judge_deneblog_category(title: str) -> str:
+        if any(x in title for x in ("新カード", "》", "神アート")):
+            # https://deneblog.jp/blog-entry-22499.html
+            # https://deneblog.jp/blog-entry-22329.html
+            return "new_card"
         if "新情報まとめ" in title:
-            # https://supersolenoid.jp/blog-entry-42757.html
+            # https://deneblog.jp/blog-entry-22388.html
             return "stream"
         return "etc"
 
@@ -110,6 +123,8 @@ class Logic:
                 await Parser.parse_gp_result(new_article)
             case "cs_result":
                 await Parser.parse_cs_result(new_article)
+            case "gold_treasure":
+                await Parser.parse_gold_treasure(new_article)
             case "new_card":
                 await Parser.parse_new_card(new_article)
             case "stream":
@@ -163,10 +178,6 @@ class Logic:
             if sent:
                 continue
             newcard_image_size = await Crawler.try_to_get_image_size(new_info_image)
-            # if category == "stream":
-            #     if newcard_image_size[0] >= 1500:
-            #         # 横長画像は広告
-            #         continue
             if (
                 newcard_image_size[0] == newcard_image_size[1]
                 and newcard_image_size[0] != 0
@@ -187,13 +198,6 @@ class Logic:
             )
             await client.get_channel(DISCORD_NEWCARD_CHANNEL_ID).send(new_info_image)
         return
-
-    # 上に持ってくる
-    @staticmethod
-    async def judge_isimage(url: str) -> bool:
-        return url.startswith("https") and any(
-            ext in url for ext in (".jpg", ".jpeg", ".png", ".gif")
-        )
 
 
 class Crawler:
@@ -231,7 +235,8 @@ class Crawler:
             size = await cls.get_image_size(url)
             if size != "ERROR":
                 return size
-        return (0, 0)  # サイズが見つからない場合は(0, 0)を返す
+        # サイズが見つからない場合は(0, 0)を返す
+        return (0, 0)
 
     @classmethod
     async def get_soup(cls, url: str) -> BeautifulSoup | str:
@@ -271,11 +276,11 @@ class Crawler:
         return ""
 
     @classmethod
-    async def get_new_articles(cls) -> list:
-        soup = await cls.try_to_get_soup(TARGET_URL)
+    async def get_new_denen_articles(cls) -> list:
+        soup = await cls.try_to_get_soup(DENEN_URL)
         if soup == "FAILED":
             return []
-        await cls.register_crawl(TARGET_URL, "HTTP_GET")
+        await cls.register_crawl(DENEN_URL, "HTTP_GET")
         titles = soup.find_all("div", class_="EntryTitle")
         new_articles = []
         for div in titles:
@@ -283,9 +288,28 @@ class Crawler:
             if not a:
                 continue
             url = a.get("href")
-            title = div.text
-            category = await Logic.judge_category(title)
+            title = div.text.strip()
+            category = await Logic.judge_denen_category(title)
             new_articles.append({"url": url, "title": title, "category": category})
+        return new_articles
+
+    @classmethod
+    async def get_new_deneblog_articles(cls) -> list:
+        soup = await cls.try_to_get_soup(DENEBLOG_URL)
+        if soup == "FAILED":
+            return []
+        await cls.register_crawl(DENEBLOG_URL, "HTTP_GET")
+        main_div = soup.find("div", id="main")
+        titles = main_div.find_all("h1", class_="ently_title")
+        new_articles = []
+        for title in titles:
+            a = title.find("a")
+            if not a:
+                continue
+            url = a.get("href")
+            title_text = title.text.strip()
+            category = await Logic.judge_deneblog_category(title_text)
+            new_articles.append({"url": url, "title": title_text, "category": category})
         return new_articles
 
 
@@ -293,13 +317,10 @@ class Parser:
     # 全体的に共通部分をまとめる
     @staticmethod
     async def parse_ranking(new_article: dict):
-        sent_urls = await UseMySQL.run_sql(
-            "SELECT url FROM sent_urls WHERE service = %s AND category = 'ranking'",
-            (SERVICE_NAME,),
-        )
         url = new_article["url"]
+        category = new_article["category"]
         # パースは一回でOK
-        if url in sent_urls:
+        if await Logic.judge_iscrawled(url, category):
             return
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
@@ -310,14 +331,14 @@ class Parser:
         await Crawler.register_crawl(ranking_img, "HTTP_GET")
         await UseMySQL.run_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-            (url, new_article["title"], new_article["category"], SERVICE_NAME),
+            (url, new_article["title"], category, SERVICE_NAME),
         )
         await UseMySQL.run_sql(
             "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
             (
                 ranking_img,
                 url,
-                new_article["category"],
+                category,
                 SERVICE_NAME,
                 ranking_image_size[0],
                 ranking_image_size[1],
@@ -369,15 +390,8 @@ class Parser:
     async def parse_many_cs_results(new_article: dict):
         url = new_article["url"]
         category = new_article["category"]
-        sent = (
-            await UseMySQL.run_sql(
-                "SELECT url FROM sent_urls WHERE service = %s AND category = 'many_cs_results' AND url = %s",
-                (SERVICE_NAME, url),
-            )
-            != []
-        )
         # パースは一回でOK
-        if sent:
+        if await Logic.judge_iscrawled(url, category):
             return
         # 中身を見て、大会情報を抜き出す！
         soup = await Crawler.try_to_get_soup(url)
@@ -405,14 +419,10 @@ class Parser:
 
     @staticmethod
     async def parse_hatti_cs_result(new_article: dict):
-        sent_urls = await UseMySQL.run_sql(
-            "SELECT url FROM sent_urls WHERE service = %s AND category = 'hatti_cs_result'",
-            (SERVICE_NAME,),
-        )
         url = new_article["url"]
         category = new_article["category"]
         # パースは一回でOK
-        if url in sent_urls:
+        if await Logic.judge_iscrawled(url, category):
             return
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
@@ -503,14 +513,10 @@ class Parser:
 
     @staticmethod
     async def parse_gp_result(new_article: dict):
-        sent_urls = await UseMySQL.run_sql(
-            "SELECT url FROM sent_urls WHERE service = %s AND category = 'gp_result'",
-            (SERVICE_NAME,),
-        )
         url = new_article["url"]
         category = new_article["category"]
         # パースは一回でOK
-        if url in sent_urls:
+        if await Logic.judge_iscrawled(url, category):
             return
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
@@ -553,14 +559,10 @@ class Parser:
 
     @staticmethod
     async def parse_cs_result(new_article: dict):
-        sent_urls = await UseMySQL.run_sql(
-            "SELECT url FROM sent_urls WHERE service = %s AND category = 'cs_result'",
-            (SERVICE_NAME,),
-        )
         url = new_article["url"]
         category = new_article["category"]
         # パースは一回でOK
-        if url in sent_urls:
+        if await Logic.judge_iscrawled(url, category):
             return
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
@@ -593,30 +595,16 @@ class Parser:
         return
 
     @staticmethod
-    async def parse_new_card(new_article: dict):
+    async def parse_gold_treasure(new_article: dict):
         url = new_article["url"]
+        category = "new_card"
+        # パースは一回でOK
+        if await Logic.judge_iscrawled(url, category):
+            return
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
             return
         await Crawler.register_crawl(url, "HTTP_GET")
-        is_new_url = (
-            await UseMySQL.run_sql(
-                "SELECT url FROM sent_urls WHERE service = %s AND category = 'new_card' AND url = %s",
-                (SERVICE_NAME, url),
-            )
-            == []
-        )
-        # 1回だけ追加する
-        if is_new_url:
-            await UseMySQL.run_sql(
-                "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-                (
-                    url,
-                    new_article["title"],
-                    new_article["category"],
-                    SERVICE_NAME,
-                ),
-            )
         newcard_img_divs = soup.find_all("div", class_="card_image")
         newcard_images = []
         for newcard_img_div in newcard_img_divs:
@@ -632,50 +620,89 @@ class Parser:
                 for newcard_img in newcard_img_divs
                 if newcard_img.get("src") is not None
             ]
-        newcard_images = list(set(newcard_images))
-        await Logic.send_new_info_images(newcard_images, url, new_article["category"])
+        if newcard_images == []:
+            return
+        await UseMySQL.run_sql(
+            "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
+            (
+                url,
+                new_article["title"],
+                category,
+                SERVICE_NAME,
+            ),
+        )
+        await Logic.send_new_info_images(list(set(newcard_images)), url, category)
+        return
+
+    @staticmethod
+    async def parse_deneblog_images(url: str) -> list:
+        soup = await Crawler.try_to_get_soup(url)
+        if soup == "FAILED":
+            return []
+        await Crawler.register_crawl(url, "HTTP_GET")
+        tablebox_div = soup.find("div", id="tablebox")
+        if tablebox_div is None:
+            return []
+        deneblog_images = [
+            img.get("src")
+            for img in tablebox_div.find_all("img")
+            if img.get("src") is not None
+        ]
+        return deneblog_images
+
+    @staticmethod
+    async def parse_new_card(new_article: dict):
+        url = new_article["url"]
+        category = new_article["category"]
+        # パースは一回でOK
+        if await Logic.judge_iscrawled(url, category):
+            return
+        newcard_images = await Parser.parse_deneblog_images(url)
+        if newcard_images == []:
+            return
+        await UseMySQL.run_sql(
+            "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
+            (
+                url,
+                new_article["title"],
+                category,
+                SERVICE_NAME,
+            ),
+        )
+        await Logic.send_new_info_images(newcard_images, url, category)
         return
 
     async def parse_stream(new_article: dict):
         url = new_article["url"]
-        soup = await Crawler.try_to_get_soup(url)
-        if soup == "FAILED":
-            return
-        await Crawler.register_crawl(url, "HTTP_GET")
-        is_new_url = (
-            await UseMySQL.run_sql(
-                "SELECT url FROM sent_urls WHERE service = %s AND category = 'stream' AND url = %s",
-                (SERVICE_NAME, url),
-            )
-            == []
-        )
+        category = new_article["category"]
         # 1回だけ追加する
-        if is_new_url:
+        if not await Logic.judge_iscrawled(url, category):
             await UseMySQL.run_sql(
                 "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
                 (
                     url,
                     new_article["title"],
-                    new_article["category"],
+                    category,
                     SERVICE_NAME,
                 ),
             )
-        streamed_imgs = soup.find("div", class_="EntryMore").find_all("img")
-        streamed_images = [
-            streamed_img.get("src")
-            for streamed_img in streamed_imgs
-            if streamed_img.get("src") is not None
-        ]
-        await Logic.send_new_info_images(streamed_images, url, new_article["category"])
+        streamed_images = await Parser.parse_deneblog_images(url)
+        if streamed_images == []:
+            return
+        await Logic.send_new_info_images(streamed_images, url, category)
         return
 
 
 async def main():
     while True:
         try:
-            new_articles = await Crawler.get_new_articles()
-            for new_article in new_articles:
-                await Logic.decide_parser(new_article)
+            # 田園補完計画→デネブログの順
+            denen_new_articles = await Crawler.get_new_denen_articles()
+            for denen_new_article in denen_new_articles:
+                await Logic.decide_parser(denen_new_article)
+            deneblog_new_articles = await Crawler.get_new_deneblog_articles()
+            for deneblog_new_article in deneblog_new_articles:
+                await Logic.decide_parser(deneblog_new_article)
         except Exception as e:
             print(f"Error: {e}")
             traceback.print_exc()
@@ -691,6 +718,8 @@ async def test(ctx):
 @client.event
 async def on_ready():
     global task
+    print(os.getenv("DB_HOST"))
+    print(os.getenv("DB_USER"))
     await Crawler.init_session()
     await UseMySQL.init_pool()
     print("Bot is ready!")
