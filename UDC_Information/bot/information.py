@@ -288,7 +288,7 @@ class Crawler:
             if not a:
                 continue
             url = a.get("href")
-            title = div.text
+            title = div.text.strip()
             category = await Logic.judge_denen_category(title)
             new_articles.append({"url": url, "title": title, "category": category})
         return new_articles
@@ -300,14 +300,14 @@ class Crawler:
             return []
         await cls.register_crawl(DENEBLOG_URL, "HTTP_GET")
         main_div = soup.find("div", class_="main")
-        titles = main_div.find_all("h1", class_="entry-title")
+        titles = main_div.find_all("h1", class_="ently_title")
         new_articles = []
         for title in titles:
             a = title.find("a")
             if not a:
                 continue
             url = a.get("href")
-            title_text = title.text
+            title_text = title.text.strip()
             category = await Logic.judge_deneblog_category(title_text)
             new_articles.append({"url": url, "title": title_text, "category": category})
         return new_articles
