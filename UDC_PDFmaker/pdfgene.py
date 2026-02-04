@@ -143,15 +143,15 @@ def get_image_url_list(deck_url: str) -> tuple | None:
     # デッキURLから画像URLリストを取得する
     deck_id = get_deck_id(deck_url)
     if not deck_id:
-        return None
+        return None, None, None
     data = get_json_data(deck_id)
     if not data:
-        return None
+        return None, None, None
     main_cards = data.get("dmDeck", {}).get("main_cards", [])
     gr_cards = data.get("dmDeck", {}).get("gr_cards", [])
     extra_cards = data.get("dmDeck", {}).get("hyper_spatial_cards", [])
     if not main_cards:
-        return None
+        return None, None, None
     return (
         get_image_urls_from_json(main_cards),
         get_image_urls_from_json(gr_cards),

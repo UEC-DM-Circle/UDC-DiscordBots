@@ -22,7 +22,7 @@ def legal_url(url: str) -> bool:
 
 def register_to_database(user: str, option: str, url: str):
     UseMySQL.run_sql(
-        "INSERT INTO pdf_requests (user, option, url) VALUES (%s, %s, %s)",
+        "INSERT INTO pdf_requests (user, options, url) VALUES (%s, %s, %s)",
         (user, option, url),
     )
 
