@@ -1,57 +1,16 @@
-import asyncio
-import datetime
-import os
-import traceback
-import discord
-from discord.ext import commands
-import aiomysql
+from common import *
+from use_mysql import *
 
-TOKEN = os.getenv("TOKEN")
-channel_id = int(os.environ.get("CHANNEL_ID"))
-test_channel_id = int(os.environ.get("TEST_CHANNEL_ID"))
 intent = discord.Intents.default()
 intent.message_content = True
 client = commands.Bot(command_prefix="~", intents=intent)
 task = None
 
 
-class UseMySQL:
-    pool: aiomysql.Pool | None = None
-
-    @classmethod
-    async def init_pool(cls):
-        if cls.pool is None:
-            cls.pool = await aiomysql.create_pool(
-                host=os.getenv("DB_HOST"),
-                user=os.getenv("DB_USER"),
-                password=os.getenv("DB_PASSWORD"),
-                db=os.getenv("DB_NAME"),
-                autocommit=True,
-                minsize=1,
-                maxsize=5,
-            )
-
-    @classmethod
-    async def close_pool(cls):
-        if cls.pool:
-            cls.pool.close()
-            await cls.pool.wait_closed()
-            cls.pool = None
-
-    @classmethod
-    async def run_sql(cls, sql: str, params: tuple = ()) -> list | None:
-        async with cls.pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(sql, params)
-                if sql.strip().upper().startswith("SELECT"):
-                    rows = await cur.fetchall()
-                    return rows[0] if rows else None
-
-
 class Announce:
     @staticmethod
     async def announce_tomorrow():
-        channel = client.get_channel(channel_id)
+        channel = client.get_channel(CHANNEL_ID)
         tomorrow_announcement = await UseMySQL.run_sql(
             "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = 0 AND is_announced = 0"
         )
@@ -67,7 +26,7 @@ class Announce:
 
     @staticmethod
     async def announce_today():
-        channel = client.get_channel(channel_id)
+        channel = client.get_channel(CHANNEL_ID)
         today_announcement = await UseMySQL.run_sql(
             "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = 1 AND is_announced = 0"
         )
@@ -83,7 +42,7 @@ class Announce:
 
     @staticmethod
     async def check_task():
-        test_channel = client.get_channel(test_channel_id)
+        test_channel = client.get_channel(TEST_CHANNEL_ID)
         next_announcement = await UseMySQL.run_sql(
             "SELECT * FROM announcements WHERE date > CURDATE()"
         )
@@ -142,7 +101,7 @@ async def main():
 
 @client.command()
 async def test(ctx):
-    if ctx.channel.id in (channel_id, test_channel_id):
+    if ctx.channel.id in (CHANNEL_ID, TEST_CHANNEL_ID):
         await ctx.send("Announcement Bot is Working!")
 
 
