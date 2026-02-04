@@ -67,6 +67,16 @@ class Logic:
         )
 
     @staticmethod
+    async def judge_is_crawled_url(url: str, category: str) -> bool:
+        return (
+            await UseMySQL.run_sql(
+                "SELECT url FROM sent_urls WHERE service = %s AND category = %s AND url = %s",
+                (SERVICE_NAME, category, url),
+            )
+            != []
+        )
+
+    @staticmethod
     async def judge_denen_category(title: str) -> str:
         if "入賞数ランキング" in title:
             return "ranking"
@@ -307,13 +317,10 @@ class Parser:
     # 全体的に共通部分をまとめる
     @staticmethod
     async def parse_ranking(new_article: dict):
-        sent_urls = await UseMySQL.run_sql(
-            "SELECT url FROM sent_urls WHERE service = %s AND category = 'ranking'",
-            (SERVICE_NAME,),
-        )
         url = new_article["url"]
+        category = new_article["category"]
         # パースは一回でOK
-        if url in sent_urls:
+        if await Logic.judge_is_crawled_url(url, category):
             return
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
@@ -324,14 +331,14 @@ class Parser:
         await Crawler.register_crawl(ranking_img, "HTTP_GET")
         await UseMySQL.run_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-            (url, new_article["title"], new_article["category"], SERVICE_NAME),
+            (url, new_article["title"], category, SERVICE_NAME),
         )
         await UseMySQL.run_sql(
             "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
             (
                 ranking_img,
                 url,
-                new_article["category"],
+                category,
                 SERVICE_NAME,
                 ranking_image_size[0],
                 ranking_image_size[1],
@@ -383,15 +390,8 @@ class Parser:
     async def parse_many_cs_results(new_article: dict):
         url = new_article["url"]
         category = new_article["category"]
-        sent = (
-            await UseMySQL.run_sql(
-                "SELECT url FROM sent_urls WHERE service = %s AND category = 'many_cs_results' AND url = %s",
-                (SERVICE_NAME, url),
-            )
-            != []
-        )
         # パースは一回でOK
-        if sent:
+        if await Logic.judge_is_crawled_url(url, category):
             return
         # 中身を見て、大会情報を抜き出す！
         soup = await Crawler.try_to_get_soup(url)
@@ -419,14 +419,10 @@ class Parser:
 
     @staticmethod
     async def parse_hatti_cs_result(new_article: dict):
-        sent_urls = await UseMySQL.run_sql(
-            "SELECT url FROM sent_urls WHERE service = %s AND category = 'hatti_cs_result'",
-            (SERVICE_NAME,),
-        )
         url = new_article["url"]
         category = new_article["category"]
         # パースは一回でOK
-        if url in sent_urls:
+        if await Logic.judge_is_crawled_url(url, category):
             return
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
@@ -517,14 +513,10 @@ class Parser:
 
     @staticmethod
     async def parse_gp_result(new_article: dict):
-        sent_urls = await UseMySQL.run_sql(
-            "SELECT url FROM sent_urls WHERE service = %s AND category = 'gp_result'",
-            (SERVICE_NAME,),
-        )
         url = new_article["url"]
         category = new_article["category"]
         # パースは一回でOK
-        if url in sent_urls:
+        if await Logic.judge_is_crawled_url(url, category):
             return
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
@@ -567,14 +559,10 @@ class Parser:
 
     @staticmethod
     async def parse_cs_result(new_article: dict):
-        sent_urls = await UseMySQL.run_sql(
-            "SELECT url FROM sent_urls WHERE service = %s AND category = 'cs_result'",
-            (SERVICE_NAME,),
-        )
         url = new_article["url"]
         category = new_article["category"]
         # パースは一回でOK
-        if url in sent_urls:
+        if await Logic.judge_is_crawled_url(url, category):
             return
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
@@ -609,22 +597,16 @@ class Parser:
     @staticmethod
     async def parse_gold_treasure(new_article: dict):
         url = new_article["url"]
-        sent = (
-            await UseMySQL.run_sql(
-                "SELECT url FROM sent_urls WHERE service = %s AND category = 'new_card' AND url = %s",
-                (SERVICE_NAME, url),
-            )
-            != []
-        )
-        # クロールは一回でOK
-        if sent:
+        category = "new_card"
+        # パースは一回でOK
+        if await Logic.judge_is_crawled_url(url, category):
             return
         await UseMySQL.run_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
             (
                 url,
                 new_article["title"],
-                "new_card",
+                category,
                 SERVICE_NAME,
             ),
         )
@@ -648,22 +630,15 @@ class Parser:
                 if newcard_img.get("src") is not None
             ]
         newcard_images = list(set(newcard_images))
-        await Logic.send_new_info_images(newcard_images, url, "new_card")
+        await Logic.send_new_info_images(newcard_images, url, category)
         return
 
     @staticmethod
     async def parse_new_card(new_article: dict):
         url = new_article["url"]
         category = new_article["category"]
-        sent = (
-            await UseMySQL.run_sql(
-                "SELECT url FROM sent_urls WHERE service = %s AND category = %s AND url = %s",
-                (SERVICE_NAME, category, url),
-            )
-            != []
-        )
-        # クロールは一回でOK
-        if sent:
+        # パースは一回でOK
+        if await Logic.judge_is_crawled_url(url, category):
             return
         await UseMySQL.run_sql(
             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
@@ -685,21 +660,15 @@ class Parser:
 
     async def parse_stream(new_article: dict):
         url = new_article["url"]
-        is_new_url = (
-            await UseMySQL.run_sql(
-                "SELECT url FROM sent_urls WHERE service = %s AND category = 'stream' AND url = %s",
-                (SERVICE_NAME, url),
-            )
-            == []
-        )
+        category = new_article["category"]
         # 1回だけ追加する
-        if is_new_url:
+        if not await Logic.judge_is_crawled_url(url, category):
             await UseMySQL.run_sql(
                 "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
                 (
                     url,
                     new_article["title"],
-                    new_article["category"],
+                    category,
                     SERVICE_NAME,
                 ),
             )
@@ -709,7 +678,7 @@ class Parser:
         await Crawler.register_crawl(url, "HTTP_GET")
         streamed_images = []
         # 以下をデネブログ用に修正
-        await Logic.send_new_info_images(streamed_images, url, new_article["category"])
+        await Logic.send_new_info_images(streamed_images, url, category)
         return
 
 
