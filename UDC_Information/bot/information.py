@@ -87,8 +87,11 @@ class Logic:
     @staticmethod
     async def judge_deneblog_category(title: str) -> str:
         if any(x in title for x in ("新カード", "》", "神アート")):
+            # https://deneblog.jp/blog-entry-22499.html
+            # https://deneblog.jp/blog-entry-22329.html
             return "new_card"
         if "公開された新情報まとめ" in title:
+            # https://deneblog.jp/blog-entry-22388.html
             return "stream"
         return "etc"
 
@@ -160,10 +163,6 @@ class Logic:
             if sent:
                 continue
             newcard_image_size = await Crawler.try_to_get_image_size(new_info_image)
-            # if category == "stream":
-            #     if newcard_image_size[0] >= 1500:
-            #         # 横長画像は広告
-            #         continue
             if (
                 newcard_image_size[0] == newcard_image_size[1]
                 and newcard_image_size[0] != 0
