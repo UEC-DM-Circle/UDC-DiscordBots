@@ -721,8 +721,6 @@ async def test(ctx):
 @client.event
 async def on_ready():
     global task
-    print(os.getenv("DB_HOST"))
-    print(os.getenv("DB_USER"))
     await Crawler.init_session()
     await UseMySQL.init_pool()
     print("Bot is ready!")
