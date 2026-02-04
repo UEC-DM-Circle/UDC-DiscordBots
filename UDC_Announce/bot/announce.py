@@ -102,7 +102,7 @@ async def main():
 @client.command()
 async def test(ctx):
     if ctx.channel.id in (CHANNEL_ID, TEST_CHANNEL_ID):
-        await ctx.send("Announcement Bot is Working!")
+        await ctx.send("Announce Bot is Working!")
 
 
 @client.event
