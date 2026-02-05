@@ -12,7 +12,7 @@ class Announce:
     async def announce(today: bool):
         channel = client.get_channel(CHANNEL_ID)
         announcement = await UseMySQL.run_sql(
-            "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND today = %s AND is_announced = 0",
+            "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = %s AND is_announced = 0",
             (today,),
         )
         if announcement:
@@ -23,7 +23,7 @@ class Announce:
                 text += f"\n{comment}"
             await channel.send(text)
             await UseMySQL.run_sql(
-                "UPDATE announcements SET is_announced = 1 WHERE date = CURDATE() AND today = %s",
+                "UPDATE announcements SET is_announced = 1 WHERE date = CURDATE() AND is_today = %s",
                 (today,),
             )
 
