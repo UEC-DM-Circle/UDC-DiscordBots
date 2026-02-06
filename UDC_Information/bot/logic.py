@@ -51,7 +51,7 @@ class Logic:
             # https://deneblog.jp/blog-entry-22499.html
             # https://deneblog.jp/blog-entry-22329.html
             return "new_card"
-        if "新情報まとめ" in title:
+        if any(x in title for x in ("公開情報まとめ", "新情報まとめ")):
             # https://deneblog.jp/blog-entry-22388.html
             return "stream"
         return "etc"
