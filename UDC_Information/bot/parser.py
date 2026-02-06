@@ -268,6 +268,32 @@ class Parser:
             ]
         return list(set(newcard_images))
 
+    async def parse_stream(new_article: dict):
+        url = new_article["url"]
+        category = new_article["category"]
+        # 1回だけ追加する
+        if not await Logic.judge_iscrawled(url, category):
+            await UseMySQL.run_sql(
+                "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
+                (
+                    url,
+                    new_article["title"],
+                    category,
+                    SERVICE_NAME,
+                ),
+            )
+        soup = await Crawler.try_to_get_soup(url)
+        if soup == "FAILED":
+            return
+        await Crawler.register_crawl(url, "HTTP_GET")
+        streamed_imgs = soup.find("div", class_="EntryMore").find_all("img")
+        streamed_images = [
+            streamed_img.get("src")
+            for streamed_img in streamed_imgs
+            if streamed_img.get("src") is not None
+        ]
+        return list(set(streamed_images))
+
     @staticmethod
     async def parse_deneblog_images(url: str) -> list:
         soup = await Crawler.try_to_get_soup(url)
