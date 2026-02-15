@@ -79,7 +79,7 @@ async def want(ctx, *, args):
                     if active == 1:
                         if current_num == num:
                             await ctx.send(
-                                f"{person}さんは既にその内容の募集(ID: {id})を行っています。"
+                                f"**{person}**さんは既にその内容の募集(ID: {id})を行っています。"
                             )
                             return
                         else:
@@ -94,7 +94,7 @@ async def want(ctx, *, args):
                                     (num, person, card),
                                 )
                             await ctx.send(
-                                f"{person}さんの『{card_name}』の募集枚数を更新しました：\n×{current_num} → ×{num}"
+                                f"**{person}**さんの『{card_name}』の募集枚数を更新しました：\n×{current_num} → ×{num}"
                             )
                             return
                     else:
@@ -103,7 +103,7 @@ async def want(ctx, *, args):
                             (num, person, card),
                         )
                         await ctx.send(
-                            f"{person}さんの募集を受け付けました：\n{card} ×{num}"
+                            f"**{person}**さんの募集を受け付けました：\n{card} ×{num}"
                         )
                         return
                 else:
@@ -113,7 +113,7 @@ async def want(ctx, *, args):
                         (person, card, num),
                     )
                     await ctx.send(
-                        f"{person}さんの募集を受け付けました：\n{card} ×{num}"
+                        f"**{person}**さんの募集を受け付けました：\n{card} ×{num}"
                     )
                     return
         await ctx.send("募集追加方法に誤りがあります。")
@@ -145,10 +145,11 @@ async def check(ctx, *args):
                                 (recruitment[0], f"{recruitment[2]} ×{recruitment[3]}")
                             )
                     buffa = sorted(buffa, key=lambda x: x[0])
-                    text += f"{person}さんの募集一覧\n"
+                    text += f"**{person}**さんの募集一覧\n"
                     for item in buffa:
                         text += f"・{item[0]}：{item[1]}\n"
-                await ctx.send(text[:-1])
+                    text += "\n"
+                await ctx.send(text[:-2])
                 return
             elif arg_length == 1:
                 # 特定の人の募集を確認
@@ -161,7 +162,7 @@ async def check(ctx, *args):
                         )
                 if buffa != []:
                     buffa = sorted(buffa, key=lambda x: x[0])
-                    text += f"{person}さんの募集一覧\n"
+                    text += f"**{person}**さんの募集一覧\n"
                     for item in buffa:
                         text += f"・{item[0]}：{item[1]}\n"
                     await ctx.send(text[:-1])
@@ -213,7 +214,7 @@ async def end(ctx, *, args):
                 (name,),
             )
             if recruitments == []:
-                await ctx.send(f"{name}さんが募集しているカードはありません。")
+                await ctx.send(f"**{name}**さんが募集しているカードはありません。")
                 return
             if is_id:
                 recruitment = await UseMySQL.run_sql(
@@ -222,7 +223,7 @@ async def end(ctx, *, args):
                 )
                 if not recruitment:
                     await ctx.send(
-                        f"{name}さんの募集の中に指定されたIDのものはありません。"
+                        f"**{name}**さんの募集の中に指定されたIDのものはありません。"
                     )
                     return
                 card = recruitment[0][1]
@@ -231,7 +232,7 @@ async def end(ctx, *, args):
                     (key,),
                 )
                 await ctx.send(
-                    f"{name}さんが『{card}』 の募集(ID: {key})を終了しました。"
+                    f"**{name}**さんが『{card}』 の募集(ID: {key})を終了しました。"
                 )
             else:
                 recruitment = await UseMySQL.run_sql(
@@ -239,13 +240,13 @@ async def end(ctx, *, args):
                     (name, key),
                 )
                 if not recruitment:
-                    await ctx.send(f"{name}さんは『{key}』の募集を行っていません。")
+                    await ctx.send(f"**{name}さん**は『{key}』の募集を行っていません。")
                     return
                 await UseMySQL.run_sql(
                     "UPDATE recruitments SET active = 0, num = 0 WHERE person = %s AND card = %s",
                     (name, key),
                 )
-                await ctx.send(f"{name}さんが『{key}』 の募集を終了しました。")
+                await ctx.send(f"**{name}さん**が『{key}』 の募集を終了しました。")
         else:
             await ctx.send("募集終了方法に誤りがあります。")
             return

@@ -9,35 +9,22 @@ task = None
 
 class Announce:
     @staticmethod
-    async def announce_tomorrow():
+    async def announce(today: bool):
         channel = client.get_channel(CHANNEL_ID)
-        tomorrow_announcement = await UseMySQL.run_sql(
-            "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = 0 AND is_announced = 0"
+        announcement = await UseMySQL.run_sql(
+            "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = %s AND is_announced = 0",
+            (today,),
         )
-        if tomorrow_announcement:
-            title, place, comment = tomorrow_announcement
-            text = f"@everyone\n\n明日は{title}です！\n場所：{place}"
+        if announcement:
+            title, place, comment = announcement
+            date = "今日" if today else "明日"
+            text = f"@everyone\n\n{date}は{title}です！\n場所：{place}"
             if comment:
                 text += f"\n{comment}"
             await channel.send(text)
             await UseMySQL.run_sql(
-                "UPDATE announcements SET is_announced = 1 WHERE date = CURDATE() AND is_today = 0"
-            )
-
-    @staticmethod
-    async def announce_today():
-        channel = client.get_channel(CHANNEL_ID)
-        today_announcement = await UseMySQL.run_sql(
-            "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = 1 AND is_announced = 0"
-        )
-        if today_announcement:
-            title, place, comment = today_announcement
-            text = f"@everyone\n\n今日は{title}です！\n場所：{place}"
-            if comment:
-                text += f"\n{comment}"
-            await channel.send(text)
-            await UseMySQL.run_sql(
-                "UPDATE announcements SET is_announced = 1 WHERE date = CURDATE() AND is_today = 1"
+                "UPDATE announcements SET is_announced = 1 WHERE date = CURDATE() AND is_today = %s",
+                (today,),
             )
 
     @staticmethod
@@ -49,8 +36,8 @@ class Announce:
         if not next_announcement:
             await test_channel.send("日程を登録してください！")
 
-    @staticmethod
-    async def check_time():
+    @classmethod
+    async def check_time(cls):
         now = datetime.datetime.now()
         next_morning = now.replace(hour=6, minute=0, second=0, microsecond=0)
         if 6 <= now.hour < 18:
@@ -63,10 +50,10 @@ class Announce:
             seconds_until %= 3600
             await asyncio.sleep(seconds_until)
             for _ in range(wait_hours):
-                await Announce.check_task()
+                await cls.check_task()
                 await asyncio.sleep(3600)
-            await Announce.announce_today()
-            await Announce.check_task()
+            await cls.announce(today=1)
+            await cls.check_task()
         now = datetime.datetime.now()
         next_evening = now.replace(hour=18, minute=0, second=0, microsecond=0)
         seconds_until = (next_evening - now).total_seconds()
@@ -74,19 +61,19 @@ class Announce:
         seconds_until %= 3600
         await asyncio.sleep(seconds_until)
         for _ in range(wait_hours):
-            await Announce.check_task()
+            await cls.check_task()
             await asyncio.sleep(3600)
-        await Announce.announce_tomorrow()
-        await Announce.check_task()
+        await cls.announce(today=0)
+        await cls.check_task()
 
-    @staticmethod
-    async def check_on_ready():
+    @classmethod
+    async def check_on_ready(cls):
         # 起動時にアナウンスできてないものがあればアナウンスする
         now = datetime.datetime.now()
         if 0 <= now.hour < 18:
-            await Announce.announce_today()
+            await cls.announce(today=1)
         else:
-            await Announce.announce_tomorrow()
+            await cls.announce(today=0)
 
 
 async def main():
