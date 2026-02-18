@@ -182,6 +182,9 @@ def generate_pdf_binary(url, ngr_option=False, nsp_option=False) -> BytesIO:
     # 画像URLリストの取得
     print("get image urls")
     main_cards, gr_cards, extra_cards = get_image_url_list(url)
+    if main_cards is None:
+        print("画像URLの取得に失敗")
+        return None
     advance_extra_cards = []
     if not nsp_option:
         for card in extra_cards:

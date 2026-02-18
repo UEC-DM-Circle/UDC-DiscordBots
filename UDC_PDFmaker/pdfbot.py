@@ -58,6 +58,9 @@ async def pdfmake(ctx, *args):
         return
     await ctx.send("生成中です")
     pdf_binary = generate_pdf_binary(url, ngr_option, nsp_option)
+    if pdf_binary is None:
+        await ctx.send("PDFの生成に失敗しました")
+        return
     await ctx.send(file=discord.File(fp=pdf_binary, filename=PDF_NAME))
     await ctx.send(f"{ctx.author.mention} 生成完了しました")
     register_to_database(
