@@ -1,5 +1,5 @@
 from common import *
-from exceptions import PDFmakerError
+from exception import PDFmakerError
 from pdfgene import generate_pdf_binary
 from use_mysql import UseMySQL
 
@@ -21,7 +21,7 @@ def register_to_database(user: str, option: str, url: str):
 
 @client.event
 async def on_ready():
-    print("ログインしました")
+    print("INFO: ログインしました。")
 
 
 @client.command()
@@ -46,6 +46,7 @@ async def pdfmake(ctx, *args):
                 url = arg
         if not legal_url(url):
             raise PDFmakerError("指定されたURLが不正です。")
+        print("INFO: Starting PDF generation...")
         await ctx.send("PDFの生成中です。しばらくお待ちください。")
         pdf_binary = generate_pdf_binary(url, ngr_option, nsp_option)
         # PDF生成に失敗
@@ -57,8 +58,11 @@ async def pdfmake(ctx, *args):
             ctx.author.display_name, f"-ngr={ngr_option} -nsp={nsp_option}", url
         )
     except PDFmakerError as e:
-        print(f"Error: {str(e)}")
+        print(f"ERROR: {str(e)}")
         await ctx.send(str(e))
+    except Exception as e:
+        print(f"UNEXPECTED ERROR: {str(e)}")
+        await ctx.send("予期せぬエラーが発生しました。管理者に連絡してください。")
 
 
 client.run(TOKEN)
