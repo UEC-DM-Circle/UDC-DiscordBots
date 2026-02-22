@@ -1,8 +1,17 @@
-from common import *
+import os
+import re
+import discord
+from discord.ext import commands
+from dotenv import load_dotenv
 from exception import PDFmakerError
 from pdfgene import generate_pdf_binary
 from use_mysql import UseMySQL
 
+load_dotenv()
+TOKEN = os.getenv("TOKEN")
+GENERATE_CHANNEL_ID = int(os.getenv("GENERATE_CHANNEL_ID"))
+TEST_CHANNEL_ID = int(os.getenv("TEST_CHANNEL_ID"))
+PDF_NAME = "artifact.pdf"
 # Bot定義
 client = commands.Bot(command_prefix="!", intents=discord.Intents.all())
 
