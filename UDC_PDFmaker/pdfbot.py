@@ -4,6 +4,7 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 from pdfgene import generate_pdf_binary
+from use_mysql import UseMySQL
 
 load_dotenv()
 TOKEN = os.getenv("TOKEN")
@@ -14,9 +15,16 @@ PDF_NAME = "artifact.pdf"
 client = commands.Bot(command_prefix="!", intents=discord.Intents.all())
 
 
-def legal_url(url: str):
+def legal_url(url: str) -> bool:
     pattern = r"^https:\/\/gachi-matome\.com\/deckrecipe-detail-dm\/\?tcgrevo_deck_maker_deck_id=+"
     return bool(re.match(pattern, url))
+
+
+def register_to_database(user: str, option: str, url: str):
+    UseMySQL.run_sql(
+        "INSERT INTO pdf_requests (user, options, url) VALUES (%s, %s, %s)",
+        (user, option, url),
+    )
 
 
 @client.event
@@ -44,16 +52,20 @@ async def pdfmake(ctx, *args):
             nsp_option = True
         elif arg.startswith("http"):
             url = arg
-
     if not legal_url(url):
         print("illegal")
         await ctx.send("urlが不正です")
         return
-
     await ctx.send("生成中です")
     pdf_binary = generate_pdf_binary(url, ngr_option, nsp_option)
+    if pdf_binary is None:
+        await ctx.send("PDFの生成に失敗しました")
+        return
     await ctx.send(file=discord.File(fp=pdf_binary, filename=PDF_NAME))
     await ctx.send(f"{ctx.author.mention} 生成完了しました")
+    register_to_database(
+        ctx.author.display_name, f"-ngr={ngr_option} -nsp={nsp_option}", url
+    )
 
 
 client.run(TOKEN)
