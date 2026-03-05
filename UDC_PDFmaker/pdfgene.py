@@ -1,3 +1,5 @@
+import os
+from dotenv import load_dotenv
 from io import BytesIO
 from urllib.parse import urlparse, parse_qs
 import requests
@@ -18,8 +20,10 @@ CARD_HEIGHT = 88
 CARD_WIDTH = 63
 COMP_RATIO = 100
 SERVICE_NAME = "UDC_PDFmaker"
-API_BASE_URL = "https://ockvhiwjud.execute-api.ap-northeast-1.amazonaws.com/prod/proxy/dm-decks/public/"
-IMAGE_BASE_URL = "https://storage.googleapis.com/ka-nabell-card-images/img/card/"
+
+load_dotenv()
+API_BASE_URL = os.getenv("API_BASE_URL")
+IMAGE_BASE_URL = os.getenv("IMAGE_BASE_URL")
 
 
 def height(i: int) -> int:
