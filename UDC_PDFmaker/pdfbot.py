@@ -3,6 +3,7 @@ import re
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
+from exception import PDFmakerError
 from pdfgene import generate_pdf_binary
 from use_mysql import UseMySQL
 
@@ -29,7 +30,7 @@ def register_to_database(user: str, option: str, url: str):
 
 @client.event
 async def on_ready():
-    print("ログインしました")
+    print("INFO: ログインしました。")
 
 
 @client.command()
@@ -39,33 +40,38 @@ async def test(ctx):
 
 @client.command()
 async def pdfmake(ctx, *args):
-    if ctx.channel.id not in [TEST_CHANNEL_ID, GENERATE_CHANNEL_ID]:
-        await ctx.send("専用のチャンネルで実行してください")
-        return
-    url = None
-    ngr_option = False
-    nsp_option = False
-    for arg in args:
-        if arg == "-ngr":
-            ngr_option = True
-        elif arg == "-nsp":
-            nsp_option = True
-        elif arg.startswith("http"):
-            url = arg
-    if not legal_url(url):
-        print("illegal")
-        await ctx.send("urlが不正です")
-        return
-    await ctx.send("生成中です")
-    pdf_binary = generate_pdf_binary(url, ngr_option, nsp_option)
-    if pdf_binary is None:
-        await ctx.send("PDFの生成に失敗しました")
-        return
-    await ctx.send(file=discord.File(fp=pdf_binary, filename=PDF_NAME))
-    await ctx.send(f"{ctx.author.mention} 生成完了しました")
-    register_to_database(
-        ctx.author.display_name, f"-ngr={ngr_option} -nsp={nsp_option}", url
-    )
+    try:
+        if ctx.channel.id not in [TEST_CHANNEL_ID, GENERATE_CHANNEL_ID]:
+            raise PDFmakerError("専用のチャンネルで実行してください。")
+        url = None
+        ngr_option = False
+        nsp_option = False
+        for arg in args:
+            if arg == "-ngr":
+                ngr_option = True
+            elif arg == "-nsp":
+                nsp_option = True
+            elif arg.startswith("http"):
+                url = arg
+        if not legal_url(url):
+            raise PDFmakerError("指定されたURLが不正です。")
+        print("INFO: Starting PDF generation...")
+        await ctx.send("PDFの生成中です。しばらくお待ちください。")
+        pdf_binary = generate_pdf_binary(url, ngr_option, nsp_option)
+        # PDF生成に失敗
+        if pdf_binary is None:
+            raise PDFmakerError("PDFの生成に失敗しました。")
+        await ctx.send(file=discord.File(fp=pdf_binary, filename=PDF_NAME))
+        await ctx.send(f"{ctx.author.mention} PDFの生成が完了しました。")
+        register_to_database(
+            ctx.author.display_name, f"-ngr={ngr_option} -nsp={nsp_option}", url
+        )
+    except PDFmakerError as e:
+        print(f"ERROR: {str(e)}")
+        await ctx.send(str(e))
+    except Exception as e:
+        print(f"UNEXPECTED ERROR: {str(e)}")
+        await ctx.send("予期せぬエラーが発生しました。管理者に連絡してください。")
 
 
 client.run(TOKEN)
