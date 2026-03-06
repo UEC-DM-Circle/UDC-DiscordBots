@@ -292,7 +292,7 @@ class Parser:
             for streamed_img in streamed_imgs
             if streamed_img.get("src") is not None
         ]
-        return list(set(streamed_images))
+        return sorted(list(set(streamed_images)))
 
     @staticmethod
     async def parse_deneblog_images(url: str) -> list:
