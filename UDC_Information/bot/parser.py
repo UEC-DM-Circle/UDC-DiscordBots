@@ -319,18 +319,18 @@ class Parser:
             return []
         return await Parser.parse_deneblog_images(url)
 
-    # async def parse_stream(new_article: dict):
-    #     url = new_article["url"]
-    #     category = new_article["category"]
-    #     # 1回だけ追加する
-    #     if not await Logic.judge_iscrawled(url, category):
-    #         await UseMySQL.run_sql(
-    #             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-    #             (
-    #                 url,
-    #                 new_article["title"],
-    #                 category,
-    #                 SERVICE_NAME,
-    #             ),
-    #         )
-    #     return await Parser.parse_deneblog_images(url)
+    async def parse_stream(new_article: dict):
+        url = new_article["url"]
+        category = new_article["category"]
+        # 1回だけ追加する
+        if not await Logic.judge_iscrawled(url, category):
+            await UseMySQL.run_sql(
+                "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
+                (
+                    url,
+                    new_article["title"],
+                    category,
+                    SERVICE_NAME,
+                ),
+            )
+        return await Parser.parse_deneblog_images(url)
