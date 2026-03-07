@@ -172,8 +172,7 @@ class Parser:
         else:
             # はっちCSが協賛している別のCSの場合
             new_article["category"] = "cs_result"
-            await Parser.parse_cs_result(new_article)
-            return
+            return await Parser.parse_cs_result(new_article)
         return f"{result_sentence}\n\n{names}", images
 
     @staticmethod
@@ -266,7 +265,7 @@ class Parser:
                 for newcard_img in newcard_img_divs
                 if newcard_img.get("src") is not None
             ]
-        return list(set(newcard_images))
+        return sorted(list(set(newcard_images)))
 
     async def parse_stream(new_article: dict):
         url = new_article["url"]
@@ -308,7 +307,7 @@ class Parser:
             for img in tablebox_div.find_all("img")
             if img.get("src") is not None
         ]
-        return list(set(deneblog_images))
+        return sorted(list(set(deneblog_images)))
 
     @staticmethod
     async def parse_new_card(new_article: dict):
