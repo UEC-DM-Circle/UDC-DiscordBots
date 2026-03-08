@@ -40,6 +40,9 @@ class Logic:
         if any(x in title for x in ("新情報まとめ", "最新情報")):
             # https://supersolenoid.jp/blog-entry-45500.html
             return "stream"
+        if all(x in title for x in ("デッキ", "公開")):
+            # https://supersolenoid.jp/blog-entry-45795.html
+            return "stream"
         if "金トレジャー" in title:
             # https://supersolenoid.jp/blog-entry-45189.html
             return "gold_treasure"
