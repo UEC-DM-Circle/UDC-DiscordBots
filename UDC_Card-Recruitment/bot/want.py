@@ -3,5 +3,5 @@ from use_mysql import UseMySQL
 
 
 class Want:
-    def parse_args(args: list) -> str:
+    async def parse_args(args: list) -> str:
         arg_length = len(args)
