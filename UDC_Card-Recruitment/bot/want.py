@@ -10,3 +10,26 @@ class Want:
         arg_length = len(args)
         if arg_length == 2:
             person = ctx.author.display_name
+            card_name = args[0]
+            num = args[1]
+        else:
+            person = args[0]
+            card_name = args[1]
+            num = args[2]
+        # 解析結果に合わせてメソッドを分けようぜ
+        if num.isdecimal():
+            num = int(num)
+            if card_name.isdecimal():
+                card_id = int(card_name)
+                recruitments = await UseMySQL.run_sql(
+                    "SELECT id, person, card, num, active FROM recruitments WHERE person = %s AND id = %s",
+                    (person, card_id),
+                )
+            else:
+                recruitments = await UseMySQL.run_sql(
+                    "SELECT id, person, card, num, active FROM recruitments WHERE person = %s AND card = %s",
+                    (person, card_name),
+                )
+
+    async def use_id():
+        pass
