@@ -31,5 +31,5 @@ class Want:
                     (person, card_name),
                 )
 
-    async def use_id():
+    async def regist_recruitment():
         pass
