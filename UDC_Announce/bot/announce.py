@@ -70,9 +70,9 @@ class Announce:
     async def check_on_ready(cls):
         # 起動時にアナウンスできてないものがあればアナウンスする
         now = datetime.datetime.now()
-        if 0 <= now.hour < 18:
+        if 6 <= now.hour < 18:
             await cls.announce(is_today=1)
-        else:
+        elif 18 <= now.hour <= 23:
             await cls.announce(is_today=0)
 
 
