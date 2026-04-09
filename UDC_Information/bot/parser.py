@@ -242,7 +242,7 @@ class Parser:
     @staticmethod
     async def parse_gold_treasure(new_article: dict):
         url = new_article["url"]
-        category = "new_card"
+        category = new_article["category"]
         # パースは一回でOK
         if await Logic.judge_iscrawled(url, category):
             return []
