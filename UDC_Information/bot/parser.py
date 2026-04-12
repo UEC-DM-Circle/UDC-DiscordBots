@@ -138,20 +138,22 @@ class Parser:
             if soup == "FAILED":
                 return
             await Crawler.register_crawl(result_url, "HTTP_GET")
-            figures = soup.find_all("figure", class_="wp-block-image")
+            hatti_base_url = "https://cardshop-hatti.jp"
+            figures = soup.find_all("figure", class_="inner_item_img")
             images = [
-                figure.find("img").get("src")
+                hatti_base_url + figure.find("img").get("src")
                 for figure in figures
                 if figure.find("img") is not None
             ]
             if images == []:
-                figures = soup.find_all("div", class_="wp-block-image")
+                figures = soup.find_all("div", class_="inner_item_img")
                 images = [
-                    figure.find("img").get("src")
+                    hatti_base_url + figure.find("img").get("src")
                     for figure in figures
                     if figure.find("img") is not None
                 ]
             # チーム戦などの場合
+            # 要対応！
             if images == []:
                 figures = soup.find_all("li", class_="wp-block-jetpack-slideshow_slide")
                 images = [
