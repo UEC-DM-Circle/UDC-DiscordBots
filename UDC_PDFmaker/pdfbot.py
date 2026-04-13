@@ -53,6 +53,9 @@ async def pdfmake(ctx, *args):
                 nsp_option = True
             elif arg.startswith("http"):
                 url = arg
+        register_to_database(
+            ctx.author.display_name, f"-ngr={ngr_option} -nsp={nsp_option}", url
+        )
         if not legal_url(url):
             raise PDFmakerError("指定されたURLが不正です。")
         print("INFO: Starting PDF generation...")
@@ -63,9 +66,6 @@ async def pdfmake(ctx, *args):
             raise PDFmakerError("PDFの生成に失敗しました。")
         await ctx.send(file=discord.File(fp=pdf_binary, filename=PDF_NAME))
         await ctx.send(f"{ctx.author.mention} PDFの生成が完了しました。")
-        register_to_database(
-            ctx.author.display_name, f"-ngr={ngr_option} -nsp={nsp_option}", url
-        )
     except PDFmakerError as e:
         print(f"ERROR: {str(e)}")
         await ctx.send(str(e))
