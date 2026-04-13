@@ -58,7 +58,7 @@ async def want(ctx, *, args):
         if arg_length in [1, 2, 3]:
             if arg_length == 1:
                 person = ctx.author.display_name
-                card_name = args[0]
+                card = args[0]
                 num = "1"
             elif arg_length == 2:
                 person = ctx.author.display_name
@@ -66,7 +66,7 @@ async def want(ctx, *, args):
                 num = args[1]
                 if not num.isdecimal():
                     person = args[0]
-                    card_name = args[1]
+                    card = args[1]
                     num = "1"
             else:
                 person = args[0]
