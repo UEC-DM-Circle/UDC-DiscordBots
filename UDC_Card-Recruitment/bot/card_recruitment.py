@@ -64,6 +64,10 @@ async def want(ctx, *, args):
                 person = ctx.author.display_name
                 card = args[0]
                 num = args[1]
+                if not num.isdecimal():
+                    person = args[0]
+                    card_name = args[1]
+                    num = "1"
             else:
                 person = args[0]
                 card = args[1]
