@@ -128,6 +128,9 @@ async def want(ctx, *, args):
                         f"**{person}**さんの募集を受け付けました：\n{card} ×{num}"
                     )
                     return
+            else:
+                await ctx.send("枚数の指定に誤りがあります。")
+            return
         await ctx.send("募集追加方法に誤りがあります。")
 
 
