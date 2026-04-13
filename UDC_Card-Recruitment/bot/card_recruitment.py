@@ -32,6 +32,7 @@ async def guide(ctx):
             "-want [人] [カード名] [枚数]\n"
             "※既存のカード名を指定した場合枚数が更新されます。\n"
             "　人を指定しない場合は自分の名前が使用されます。\n"
+            "　枚数を指定しない場合は1枚として扱われます。\n"
             "　半角スペースを含むカード名を入力しないようにしてください。\n"
             "\n"
             "【募集確認】\n"
@@ -54,8 +55,12 @@ async def want(ctx, *, args):
     # 追加している人が入力者本人かどうかでメッセージを変更する
     if await check_channel(ctx):
         arg_length = len(args)
-        if arg_length in [2, 3]:
-            if arg_length == 2:
+        if arg_length in [1, 2, 3]:
+            if arg_length == 1:
+                person = ctx.author.display_name
+                card_name = args[0]
+                num = "1"
+            elif arg_length == 2:
                 person = ctx.author.display_name
                 card = args[0]
                 num = args[1]
