@@ -65,11 +65,14 @@ class Information:
                 message, result_images = await Parser.parse_gp_result(new_article)
                 if not message or not result_images:
                     return
-                await Information.send_message(DISCORD_RESULT_CHANNEL_ID, message)
-                await UseMySQL.run_sql(
-                    "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-                    (url, title, category, SERVICE_NAME),
-                )
+                # 結果の送信とDBへの登録は初回のみ
+                if not await Logic.judge_iscrawled(url, category):
+                    await Information.send_message(DISCORD_RESULT_CHANNEL_ID, message)
+                    await UseMySQL.run_sql(
+                        "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
+                        (url, title, category, SERVICE_NAME),
+                    )
+                # 後から画像が追加されることもある
                 await Information.send_result_images(result_images, url, category)
             case "cs_result":
                 message, result_images = await Parser.parse_cs_result(new_article)
@@ -123,14 +126,7 @@ class Information:
         for result_image in result_images:
             if not await Logic.judge_isimage(result_image):
                 continue
-            sent = (
-                await UseMySQL.run_sql(
-                    "SELECT url FROM sent_images WHERE service = %s AND url = %s",
-                    (SERVICE_NAME, result_image),
-                )
-                != []
-            )
-            if sent:
+            if await Logic.judge_issent(result_image, category):
                 continue
             deck_image_size = await Crawler.try_to_get_image_size(result_image)
             await Crawler.register_crawl(result_image, "HTTP_GET")
@@ -153,14 +149,7 @@ class Information:
         for new_info_image in new_info_images:
             if not await Logic.judge_isimage(new_info_image):
                 continue
-            sent = (
-                await UseMySQL.run_sql(
-                    "SELECT url FROM sent_images WHERE service = %s AND category = %s AND url = %s",
-                    (SERVICE_NAME, category, new_info_image),
-                )
-                != []
-            )
-            if sent:
+            if await Logic.judge_issent(new_info_image, category):
                 continue
             newcard_image_size = await Crawler.try_to_get_image_size(new_info_image)
             if (
