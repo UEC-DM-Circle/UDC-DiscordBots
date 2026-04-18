@@ -11,9 +11,21 @@ class Logic:
 
     @staticmethod
     async def judge_iscrawled(url: str, category: str) -> bool:
+        # 4週間以内に同じURLが送信されていないか
         return (
             await UseMySQL.run_sql(
-                "SELECT url FROM sent_urls WHERE service = %s AND category = %s AND url = %s",
+                "SELECT 1 FROM sent_urls WHERE service = %s AND category = %s AND url = %s AND created_at >= DATE_SUB(NOW(), INTERVAL 4 WEEK) LIMIT 1",
+                (SERVICE_NAME, category, url),
+            )
+            != []
+        )
+
+    @staticmethod
+    async def judge_issent(url: str, category: str) -> bool:
+        # 4週間以内に同じ画像が送信されていないか
+        return (
+            await UseMySQL.run_sql(
+                "SELECT 1 FROM sent_images WHERE service = %s AND category = %s AND url = %s AND created_at >= DATE_SUB(NOW(), INTERVAL 4 WEEK) LIMIT 1",
                 (SERVICE_NAME, category, url),
             )
             != []

@@ -180,10 +180,6 @@ class Parser:
     @staticmethod
     async def parse_gp_result(new_article: dict):
         url = new_article["url"]
-        category = new_article["category"]
-        # パースは一回でOK
-        if await Logic.judge_iscrawled(url, category):
-            return "", []
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
             return "", []
