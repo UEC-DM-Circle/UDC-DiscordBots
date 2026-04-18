@@ -125,14 +125,7 @@ class Information:
         for result_image in result_images:
             if not await Logic.judge_isimage(result_image):
                 continue
-            sent = (
-                await UseMySQL.run_sql(
-                    "SELECT url FROM sent_images WHERE service = %s AND url = %s",
-                    (SERVICE_NAME, result_image),
-                )
-                != []
-            )
-            if sent:
+            if await Logic.judge_issent(result_image, category):
                 continue
             deck_image_size = await Crawler.try_to_get_image_size(result_image)
             await Crawler.register_crawl(result_image, "HTTP_GET")
@@ -155,14 +148,7 @@ class Information:
         for new_info_image in new_info_images:
             if not await Logic.judge_isimage(new_info_image):
                 continue
-            sent = (
-                await UseMySQL.run_sql(
-                    "SELECT url FROM sent_images WHERE service = %s AND category = %s AND url = %s",
-                    (SERVICE_NAME, category, new_info_image),
-                )
-                != []
-            )
-            if sent:
+            if await Logic.judge_issent(new_info_image, category):
                 continue
             newcard_image_size = await Crawler.try_to_get_image_size(new_info_image)
             if (
