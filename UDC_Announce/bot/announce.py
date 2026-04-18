@@ -9,22 +9,22 @@ task = None
 
 class Announce:
     @staticmethod
-    async def announce(today: bool):
+    async def announce(is_today: bool):
         channel = client.get_channel(CHANNEL_ID)
         announcement = await UseMySQL.run_sql(
             "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = %s AND is_announced = 0",
-            (today,),
+            (is_today,),
         )
         if announcement:
             title, place, comment = announcement
-            date = "今日" if today else "明日"
+            date = "今日" if is_today else "明日"
             text = f"@everyone\n\n{date}は{title}です！\n場所：{place}"
             if comment:
                 text += f"\n{comment}"
             await channel.send(text)
             await UseMySQL.run_sql(
                 "UPDATE announcements SET is_announced = 1 WHERE date = CURDATE() AND is_today = %s",
-                (today,),
+                (is_today,),
             )
 
     @staticmethod
@@ -52,7 +52,7 @@ class Announce:
             for _ in range(wait_hours):
                 await cls.check_task()
                 await asyncio.sleep(3600)
-            await cls.announce(today=1)
+            await cls.announce(is_today=1)
             await cls.check_task()
         now = datetime.datetime.now()
         next_evening = now.replace(hour=18, minute=0, second=0, microsecond=0)
@@ -63,17 +63,17 @@ class Announce:
         for _ in range(wait_hours):
             await cls.check_task()
             await asyncio.sleep(3600)
-        await cls.announce(today=0)
+        await cls.announce(is_today=0)
         await cls.check_task()
 
     @classmethod
     async def check_on_ready(cls):
         # 起動時にアナウンスできてないものがあればアナウンスする
         now = datetime.datetime.now()
-        if 0 <= now.hour < 18:
-            await cls.announce(today=1)
-        else:
-            await cls.announce(today=0)
+        if 6 <= now.hour < 18:
+            await cls.announce(is_today=1)
+        elif 18 <= now.hour <= 23:
+            await cls.announce(is_today=0)
 
 
 async def main():

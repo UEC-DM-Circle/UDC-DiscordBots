@@ -1,3 +1,5 @@
+import os
+from dotenv import load_dotenv
 from io import BytesIO
 from urllib.parse import urlparse, parse_qs
 import requests
@@ -8,6 +10,8 @@ from reportlab.lib.units import mm
 from reportlab.lib.pagesizes import A4, portrait
 from reportlab.lib.utils import ImageReader
 from PIL import Image
+from exception import PDFmakerError
+from use_mysql import UseMySQL
 
 # 定数
 MARGIN = 0
@@ -15,8 +19,11 @@ MARGIN_TOP = 10
 CARD_HEIGHT = 88
 CARD_WIDTH = 63
 COMP_RATIO = 100
-API_BASE_URL = "https://ockvhiwjud.execute-api.ap-northeast-1.amazonaws.com/prod/proxy/dm-decks/public/"
-IMAGE_BASE_URL = "https://storage.googleapis.com/ka-nabell-card-images/img/card/"
+SERVICE_NAME = "UDC_PDFmaker"
+
+load_dotenv()
+API_BASE_URL = os.getenv("API_BASE_URL")
+IMAGE_BASE_URL = os.getenv("IMAGE_BASE_URL")
 
 
 def height(i: int) -> int:
@@ -89,6 +96,17 @@ def crop_img(image: bytes) -> ImageReader:  # 引数は画像のバイトデー�
     return compress_image(pil_img)
 
 
+def register_crawl(target_url: str, method: str):
+    UseMySQL.run_sql(
+        "INSERT INTO crawls (target_url, method, service) VALUES (%s, %s, %s)",
+        (
+            target_url,
+            method,
+            SERVICE_NAME,
+        ),
+    )
+
+
 def get_deck_id(url: str) -> str | None:
     # URLからデッキIDを取得する
     try:
@@ -96,6 +114,7 @@ def get_deck_id(url: str) -> str | None:
         params = parse_qs(query)
         return params.get("tcgrevo_deck_maker_deck_id", [None])[0]
     except Exception:
+        print("ERROR: デッキIDの取得に失敗しました。")
         return None
 
 
@@ -105,8 +124,10 @@ def get_json_data(deck_id: str) -> dict | None:
     try:
         res = requests.get(api_url, timeout=10)
         res.raise_for_status()
+        register_crawl(api_url, "Amazon_API")
         return res.json()
     except Exception:
+        print("ERROR: デッキデータの取得に失敗しました。")
         return None
 
 
@@ -129,15 +150,15 @@ def get_image_url_list(deck_url: str) -> tuple | None:
     # デッキURLから画像URLリストを取得する
     deck_id = get_deck_id(deck_url)
     if not deck_id:
-        return None
+        return None, None, None
     data = get_json_data(deck_id)
     if not data:
-        return None
+        return None, None, None
     main_cards = data.get("dmDeck", {}).get("main_cards", [])
     gr_cards = data.get("dmDeck", {}).get("gr_cards", [])
     extra_cards = data.get("dmDeck", {}).get("hyper_spatial_cards", [])
     if not main_cards:
-        return None
+        return None, None, None
     return (
         get_image_urls_from_json(main_cards),
         get_image_urls_from_json(gr_cards),
@@ -148,7 +169,6 @@ def get_image_url_list(deck_url: str) -> tuple | None:
 def make_pdf_binary_from_images(image_urls: list) -> BytesIO:
     buffer = BytesIO()
     page = canvas.Canvas(buffer, pagesize=portrait(A4))
-
     for i in range(0, len(image_urls), 9):
         for j in range(9):
             if i + j < len(image_urls):
@@ -166,32 +186,43 @@ def make_pdf_binary_from_images(image_urls: list) -> BytesIO:
 
 
 def generate_pdf_binary(url, ngr_option=False, nsp_option=False) -> BytesIO:
-    # 画像URLリストの取得
-    print("get image urls")
-    main_cards, gr_cards, extra_cards = get_image_url_list(url)
-    advance_extra_cards = []
-    if not nsp_option:
-        for card in extra_cards:
-            for i in range(1, 4):
-                advance_extra_cards.append(
-                    card.split("_")[0] + "_" + str(i + 1) + ".jpg"
-                )
-    # オプションの適用
-    srcs = main_cards
-    if not ngr_option:
-        srcs += gr_cards
-    if not nsp_option:
-        srcs += extra_cards
-        srcs += advance_extra_cards
-    # 画像のダウンロード
-    print("download images")
-    imgs = []
-    for src in srcs:
-        r = requests.get(src)
-        if r.status_code == 200:
-            imgs.append(crop_img(r.content))
-    # pdf作成と画像追加
-    print("make pdf")
-    page = make_pdf_binary_from_images(imgs)
-    print("complete")
-    return page
+    try:
+        # 画像URLリストの取得
+        print("STEP: Fetching image URLs...")
+        main_cards, gr_cards, extra_cards = get_image_url_list(url)
+        if main_cards is None:
+            print("ERROR: 画像URLの取得に失敗しました。")
+            return None
+        advance_extra_cards = []
+        if not nsp_option:
+            for card in extra_cards:
+                for i in range(1, 4):
+                    advance_extra_cards.append(
+                        card.split("_")[0] + "_" + str(i + 1) + ".jpg"
+                    )
+        # オプションの適用
+        srcs = main_cards
+        if not ngr_option:
+            srcs += gr_cards
+        if not nsp_option:
+            srcs += extra_cards
+            srcs += advance_extra_cards
+        # 画像のダウンロード
+        print("STEP: Downloading images...")
+        imgs = []
+        for src in srcs:
+            r = requests.get(src)
+            if r.status_code == 200:
+                imgs.append(crop_img(r.content))
+                register_crawl(src, "HTTP_GET")
+        # pdf作成と画像追加
+        print("STEP: Generating PDF...")
+        page = make_pdf_binary_from_images(imgs)
+        print("INFO: Completed!")
+        return page
+    except PDFmakerError as e:
+        print(f"ERROR: {str(e)}")
+        return None
+    except Exception as e:
+        print(f"UNEXPECTED ERROR: {str(e)}")
+        return None

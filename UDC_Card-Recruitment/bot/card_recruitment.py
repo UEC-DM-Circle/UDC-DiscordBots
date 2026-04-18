@@ -26,18 +26,25 @@ async def guide(ctx):
             "```"
             "【使い方を表示】\n"
             "-guide\n"
+            "\n"
             "【募集追加】\n"
             "-want [カード名] [枚数]\n"
             "-want [人] [カード名] [枚数]\n"
             "※既存のカード名を指定した場合枚数が更新されます。\n"
             "　人を指定しない場合は自分の名前が使用されます。\n"
+            "　枚数を指定しない場合は1枚として扱われます。\n"
             "　半角スペースを含むカード名を入力しないようにしてください。\n"
+            "\n"
             "【募集確認】\n"
             "-check [カード名/人](個別確認)\n"
             "-check (引数なしで全体確認)\n"
+            "\n"
             "【募集終了】\n"
-            "-end [カード名/募集ID]\n"
-            "-end [人] [カード名/募集ID]\n"
+            "-end [募集ID]\n"
+            "-end [人] [募集ID]\n"
+            "※募集IDは複数指定可能です。\n"
+            "-end [募集ID1] [募集ID2] ...\n"
+            "-end [人] [募集ID1] [募集ID2] ...\n"
             "```"
         )
 
@@ -45,13 +52,22 @@ async def guide(ctx):
 @client.command()
 async def want(ctx, *, args):
     args = args.split()
+    # 追加している人が入力者本人かどうかでメッセージを変更する
     if await check_channel(ctx):
         arg_length = len(args)
-        if arg_length in [2, 3]:
-            if arg_length == 2:
+        if arg_length in [1, 2, 3]:
+            if arg_length == 1:
+                person = ctx.author.display_name
+                card = args[0]
+                num = "1"
+            elif arg_length == 2:
                 person = ctx.author.display_name
                 card = args[0]
                 num = args[1]
+                if not num.isdecimal():
+                    person = args[0]
+                    card = args[1]
+                    num = "1"
             else:
                 person = args[0]
                 card = args[1]
@@ -116,6 +132,9 @@ async def want(ctx, *, args):
                         f"**{person}**さんの募集を受け付けました：\n{card} ×{num}"
                     )
                     return
+            else:
+                await ctx.send("枚数の指定に誤りがあります。")
+            return
         await ctx.send("募集追加方法に誤りがあります。")
 
 
@@ -137,6 +156,7 @@ async def check(ctx, *args):
                 people = set()
                 for recruitment in recruitments:
                     people.add(recruitment[1])
+                people = sorted(people)
                 for person in people:
                     buffa = []
                     for recruitment in recruitments:
@@ -193,60 +213,66 @@ async def end(ctx, *, args):
     args = args.split()
     if await check_channel(ctx):
         arg_length = len(args)
-        is_id = False
-        if arg_length in [1, 2]:
-            if arg_length == 1:
-                name = ctx.author.display_name
-                if args[0].isdecimal():
-                    key = int(args[0])
-                    is_id = True
-                else:
-                    key = args[0]
+        if arg_length > 0:
+            if args[0].isdecimal():
+                person = ctx.author.display_name
             else:
-                name = args[0]
-                if args[1].isdecimal():
-                    key = int(args[1])
-                    is_id = True
-                else:
-                    key = args[1]
+                person = args[0]
+                args = args[1:]
             recruitments = await UseMySQL.run_sql(
                 "SELECT id FROM recruitments WHERE person = %s AND active = 1",
-                (name,),
+                (person,),
             )
             if recruitments == []:
-                await ctx.send(f"**{name}**さんが募集しているカードはありません。")
+                await ctx.send(f"**{person}**さんが募集しているカードはありません。")
                 return
-            if is_id:
+            for arg in args:
+                if not arg.isdecimal():
+                    await ctx.send("募集IDを数字で指定してください。")
+                    return
+            ended_recruitments = []
+            for arg in args:
+                key = int(arg)
                 recruitment = await UseMySQL.run_sql(
-                    "SELECT id, card FROM recruitments WHERE person = %s AND id = %s",
-                    (name, key),
+                    "SELECT id, card FROM recruitments WHERE person = %s AND id = %s AND active = 1",
+                    (person, key),
                 )
                 if not recruitment:
-                    await ctx.send(
-                        f"**{name}**さんの募集の中に指定されたIDのものはありません。"
-                    )
-                    return
-                card = recruitment[0][1]
+                    ended_recruitments.append((key, ""))
+                    continue
+                card_name = recruitment[0][1]
                 await UseMySQL.run_sql(
-                    "UPDATE recruitments SET active = 0, num = 0 WHERE id = %s",
+                    "UPDATE recruitments SET active = 0 WHERE id = %s",
                     (key,),
                 )
-                await ctx.send(
-                    f"**{name}**さんが『{card}』 の募集(ID: {key})を終了しました。"
-                )
+                ended_recruitments.append((key, card_name))
+            message_to_send = ""
+            if len(ended_recruitments) == 1:
+                key = ended_recruitments[0][0]
+                card_name = ended_recruitments[0][1]
+                if not card_name:
+                    message_to_send += f"**{person}**さんの募集の中に指定されたID({key})のものはありませんでした。\n"
+                else:
+                    if person == ctx.author.display_name:
+                        message_to_send += f"**{person}**さんが『{card_name}』の募集(ID: {key})を終了しました。\n"
+                    else:
+                        message_to_send += f"**{ctx.author.display_name}**さんが**{person}**さんの募集(ID: {key})を終了しました。\n"
             else:
-                recruitment = await UseMySQL.run_sql(
-                    "SELECT id, card FROM recruitments WHERE person = %s AND card = %s",
-                    (name, key),
-                )
-                if not recruitment:
-                    await ctx.send(f"**{name}さん**は『{key}』の募集を行っていません。")
-                    return
-                await UseMySQL.run_sql(
-                    "UPDATE recruitments SET active = 0, num = 0 WHERE person = %s AND card = %s",
-                    (name, key),
-                )
-                await ctx.send(f"**{name}さん**が『{key}』 の募集を終了しました。")
+                if person == ctx.author.display_name:
+                    message_to_send += (
+                        f"**{person}**さんが以下の募集を終了しました。\n\n"
+                    )
+                else:
+                    message_to_send += f"**{ctx.author.display_name}**さんが**{person}**さんの以下の募集を終了しました。\n\n"
+                for ended_recruitment in ended_recruitments:
+                    key = ended_recruitment[0]
+                    card_name = ended_recruitment[1]
+                    if not card_name:
+                        message_to_send += f"・該当なし (ID: {key})\n"
+                    else:
+                        message_to_send += f"・『{card_name}』(ID: {key})\n"
+            await ctx.send(message_to_send[:-1])
+            return
         else:
             await ctx.send("募集終了方法に誤りがあります。")
             return

@@ -1,13 +1,12 @@
-version: '3.8'
 services:
   bot:
     build: .
     volumes:
-      - ./bot:/usr/src/app:rw
-    restart: unless-stopped
+      - ./bot:/usr/src/bot:rw
     env_file:
       - .env
     environment:
       - TZ=Asia/Tokyo
-    command: ["python3", "card-recruitment.py"]
+    command: ["python3", "card_recruitment.py"]
+    restart: unless-stopped
     tty: true
