@@ -64,11 +64,18 @@ class Information:
                 message, result_images = await Parser.parse_gp_result(new_article)
                 if not message or not result_images:
                     return
-                await Information.send_message(DISCORD_RESULT_CHANNEL_ID, message)
-                await UseMySQL.run_sql(
-                    "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-                    (url, title, category, SERVICE_NAME),
-                )
+                # 結果の送信とDBへの登録は初回のみ
+                if not await Logic.judge_iscrawled(url, category):
+                    await Information.send_message(DISCORD_RESULT_CHANNEL_ID, message)
+                    await UseMySQL.run_sql(
+                        "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
+                        (url, title, category, SERVICE_NAME),
+                    )
+                else:
+                    await Information.send_message(
+                        DISCORD_RESULT_CHANNEL_ID, "GP結果(追加)"
+                    )
+                # 後から画像が追加されることもある
                 await Information.send_result_images(result_images, url, category)
             case "cs_result":
                 message, result_images = await Parser.parse_cs_result(new_article)
