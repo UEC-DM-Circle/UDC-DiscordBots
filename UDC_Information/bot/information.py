@@ -71,10 +71,6 @@ class Information:
                         "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
                         (url, title, category, SERVICE_NAME),
                     )
-                else:
-                    await Information.send_message(
-                        DISCORD_RESULT_CHANNEL_ID, "GP結果(追加)"
-                    )
                 # 後から画像が追加されることもある
                 await Information.send_result_images(result_images, url, category)
             case "cs_result":
