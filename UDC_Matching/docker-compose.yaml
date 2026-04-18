@@ -1,13 +1,12 @@
-version: '3.8'
 services:
   bot:
     build: .
     volumes:
-      - ./bot:/usr/src/app:rw
-    restart: unless-stopped
+      - ./bot:/usr/src/bot:rw
     env_file:
       - .env
     environment:
       - TZ=Asia/Tokyo
     command: ["python3", "matching.py"]
+    restart: unless-stopped
     tty: true

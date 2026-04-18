@@ -37,8 +37,11 @@ class Logic:
                 return "gp_result"
             # https://supersolenoid.jp/blog-entry-42770.html
             return "cs_result"
-        if "新情報まとめ" in title:
+        if any(x in title for x in ("新情報まとめ", "最新情報")):
             # https://supersolenoid.jp/blog-entry-45500.html
+            return "stream"
+        if all(x in title for x in ("デッキ", "公開")):
+            # https://supersolenoid.jp/blog-entry-45795.html
             return "stream"
         if "金トレジャー" in title:
             # https://supersolenoid.jp/blog-entry-45189.html
@@ -54,4 +57,7 @@ class Logic:
             # https://deneblog.jp/blog-entry-22499.html
             # https://deneblog.jp/blog-entry-22329.html
             return "new_card"
+        # if "情報まとめ" in title:
+        #     # https://deneblog.jp/blog-entry-22540.html
+        #     return "stream"
         return "etc"

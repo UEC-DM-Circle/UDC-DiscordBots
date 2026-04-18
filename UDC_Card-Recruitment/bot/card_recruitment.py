@@ -26,19 +26,25 @@ async def guide(ctx):
             "```"
             "【使い方を表示】\n"
             "-guide\n"
+            "\n"
             "【募集追加】\n"
             "-want [カード名] [枚数]\n"
             "-want [人] [カード名] [枚数]\n"
             "※既存のカード名を指定した場合枚数が更新されます。\n"
             "　人を指定しない場合は自分の名前が使用されます。\n"
+            "　枚数を指定しない場合は1枚として扱われます。\n"
             "　半角スペースを含むカード名を入力しないようにしてください。\n"
+            "\n"
             "【募集確認】\n"
             "-check [カード名/人](個別確認)\n"
             "-check (引数なしで全体確認)\n"
+            "\n"
             "【募集終了】\n"
-            "※募集IDは複数指定可能です。\n"
             "-end [募集ID]\n"
             "-end [人] [募集ID]\n"
+            "※募集IDは複数指定可能です。\n"
+            "-end [募集ID1] [募集ID2] ...\n"
+            "-end [人] [募集ID1] [募集ID2] ...\n"
             "```"
         )
 
@@ -49,11 +55,19 @@ async def want(ctx, *, args):
     # 追加している人が入力者本人かどうかでメッセージを変更する
     if await check_channel(ctx):
         arg_length = len(args)
-        if arg_length in [2, 3]:
-            if arg_length == 2:
+        if arg_length in [1, 2, 3]:
+            if arg_length == 1:
+                person = ctx.author.display_name
+                card = args[0]
+                num = "1"
+            elif arg_length == 2:
                 person = ctx.author.display_name
                 card = args[0]
                 num = args[1]
+                if not num.isdecimal():
+                    person = args[0]
+                    card = args[1]
+                    num = "1"
             else:
                 person = args[0]
                 card = args[1]
@@ -118,6 +132,9 @@ async def want(ctx, *, args):
                         f"**{person}**さんの募集を受け付けました：\n{card} ×{num}"
                     )
                     return
+            else:
+                await ctx.send("枚数の指定に誤りがあります。")
+            return
         await ctx.send("募集追加方法に誤りがあります。")
 
 
