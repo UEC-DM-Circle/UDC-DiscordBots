@@ -12,6 +12,7 @@ task = None
 
 class Information:
     # 各々切り分けてね
+    # 画像が送信済みかの判定：重いので直近1カ月以内のものに重複があるかをチェック
     @staticmethod
     async def decide_process_method(new_article: dict):
         url = new_article["url"]
