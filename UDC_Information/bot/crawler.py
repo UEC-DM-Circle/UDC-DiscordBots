@@ -29,7 +29,8 @@ class Crawler:
                 image = Image.open(io.BytesIO(data))
                 image.verify()
                 return image.size
-        except Exception:
+        except Exception as e:
+            print(f"Exception: {type(e).__name__} - {e}")
             return "ERROR"
 
     @classmethod
@@ -50,7 +51,8 @@ class Crawler:
                     return "ERROR"
                 text = await resp.text()
                 return BeautifulSoup(text, "html.parser")
-        except Exception:
+        except Exception as e:
+            print(f"Exception: {type(e).__name__} - {e}")
             return "ERROR"
 
     @classmethod
