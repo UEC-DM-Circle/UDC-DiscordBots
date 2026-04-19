@@ -58,6 +58,9 @@ class Logic:
         if "金トレジャー" in title:
             # https://supersolenoid.jp/blog-entry-45189.html
             return "gold_treasure"
+        if "DMGP" in title:
+            # https://supersolenoid.jp/blog-entry-46211.html
+            return "gp_result"
         return "etc"
 
     @staticmethod
