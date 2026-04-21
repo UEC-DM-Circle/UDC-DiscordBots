@@ -127,7 +127,7 @@ async def test(ctx):
 async def check(ctx):
     if await check_channel(ctx):
         unsend_announcements = await UseMySQL.run_sql(
-            "SELECT id, title, date, place, comment, is_today FROM announcements WHERE date = CURDATE() AND is_announced = 0 ORDER BY date ASC"
+            "SELECT id, title, date, place, comment, is_today FROM announcements WHERE is_announced = 0 ORDER BY date ASC"
         )
         if unsend_announcements:
             message = "**送信予定アナウンス一覧**\n\n\n"
