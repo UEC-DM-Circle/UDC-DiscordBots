@@ -96,7 +96,7 @@ async def guide(ctx):
         await ctx.send(
             "```"
             "【使い方を表示】\n"
-            "-guide\n"
+            "=guide\n"
             "\n"
             "【Botの動作確認】\n"
             "=test\n"
@@ -183,24 +183,28 @@ async def add(ctx, *args):
         await ctx.send("アナウンスを追加しました！")
 
 
+@client.command()
 async def cancel(ctx, *args):
     if await check_channel(ctx):
-        if len(args) != 1:
-            await ctx.send('不正な引数です。"=help"で使い方を確認してください。')
+        if len(args) == 0:
+            await ctx.send('引数が足りません。"=help"で使い方を確認してください。')
             return
-        try:
-            announcement_id = int(args[0])
-        except ValueError:
-            await ctx.send("IDは整数で指定してください。")
-            return
-        result = await UseMySQL.run_sql(
-            "UPDATE announcements SET is_announced = 1 WHERE id = %s AND is_announced = 0",
-            (announcement_id,),
-        )
-        if result is not None:
-            await ctx.send("アナウンスの送信予定をキャンセルしました！")
-        else:
-            await ctx.send("指定されたIDのアナウンスが見つかりませんでした。")
+        for arg in args:
+            try:
+                announcement_id = int(arg)
+            except ValueError:
+                await ctx.send("IDは整数で指定してください。")
+                return
+            result = await UseMySQL.run_sql(
+                "UPDATE announcements SET is_announced = 1 WHERE id = %s AND is_announced = 0",
+                (announcement_id,),
+            )
+            if result is not None:
+                await ctx.send(f"アナウンスの送信予定(ID: {arg})をキャンセルしました！")
+            else:
+                await ctx.send(
+                    f"指定されたID({arg})のアナウンスが見つかりませんでした。"
+                )
 
 
 @client.event
