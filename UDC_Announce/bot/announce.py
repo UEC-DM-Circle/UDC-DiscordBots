@@ -199,7 +199,7 @@ async def cancel(ctx, *args):
                 "UPDATE announcements SET is_announced = 1 WHERE id = %s AND is_announced = 0",
                 (announcement_id,),
             )
-            if result is not None:
+            if result is None:
                 await ctx.send(f"アナウンスの送信予定(ID: {arg})をキャンセルしました！")
             else:
                 await ctx.send(
