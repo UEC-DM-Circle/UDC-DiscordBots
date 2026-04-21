@@ -91,11 +91,13 @@ async def check_channel(ctx) -> bool:
 
 
 @client.command()
-async def help(ctx):
+async def guide(ctx):
     if await check_channel(ctx):
         await ctx.send(
             "```"
-            "**UDC_Announce Botの使い方**\n\n"
+            "【使い方を表示】\n"
+            "-guide\n"
+            "\n"
             "【Botの動作確認】\n"
             "=test\n"
             "\n"
