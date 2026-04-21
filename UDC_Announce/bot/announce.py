@@ -14,7 +14,7 @@ class Announce:
         announcement = await UseMySQL.run_sql(
             "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = %s AND is_announced = 0",
             (is_today,),
-        )
+        )[0]
         if announcement:
             title, place, comment = announcement
             date = "今日" if is_today else "明日"
@@ -32,7 +32,7 @@ class Announce:
         test_channel = client.get_channel(TEST_CHANNEL_ID)
         next_announcement = await UseMySQL.run_sql(
             "SELECT * FROM announcements WHERE date > CURDATE()"
-        )
+        )[0]
         if not next_announcement:
             await test_channel.send("日程を登録してください！")
 
