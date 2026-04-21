@@ -129,6 +129,7 @@ async def check(ctx):
         unsend_announcements = await UseMySQL.run_sql(
             "SELECT id, title, date, place, comment, is_today FROM announcements WHERE is_announced = 0 ORDER BY date ASC"
         )
+        print(unsend_announcements)
         if unsend_announcements:
             message = "**送信予定アナウンス一覧**\n\n\n"
             for unsend_announcement in unsend_announcements:
