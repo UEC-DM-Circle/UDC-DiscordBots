@@ -138,20 +138,22 @@ class Parser:
             if soup == "FAILED":
                 return
             await Crawler.register_crawl(result_url, "HTTP_GET")
-            figures = soup.find_all("figure", class_="wp-block-image")
+            hatti_base_url = "https://cardshop-hatti.jp"
+            figures = soup.find_all("figure", class_="inner_item_img")
             images = [
-                figure.find("img").get("src")
+                hatti_base_url + figure.find("img").get("src")
                 for figure in figures
                 if figure.find("img") is not None
             ]
             if images == []:
-                figures = soup.find_all("div", class_="wp-block-image")
+                figures = soup.find_all("div", class_="inner_item_img")
                 images = [
-                    figure.find("img").get("src")
+                    hatti_base_url + figure.find("img").get("src")
                     for figure in figures
                     if figure.find("img") is not None
                 ]
             # チーム戦などの場合
+            # 要対応！
             if images == []:
                 figures = soup.find_all("li", class_="wp-block-jetpack-slideshow_slide")
                 images = [
@@ -172,17 +174,12 @@ class Parser:
         else:
             # はっちCSが協賛している別のCSの場合
             new_article["category"] = "cs_result"
-            await Parser.parse_cs_result(new_article)
-            return
+            return await Parser.parse_cs_result(new_article)
         return f"{result_sentence}\n\n{names}", images
 
     @staticmethod
     async def parse_gp_result(new_article: dict):
         url = new_article["url"]
-        category = new_article["category"]
-        # パースは一回でOK
-        if await Logic.judge_iscrawled(url, category):
-            return "", []
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
             return "", []
@@ -243,7 +240,7 @@ class Parser:
     @staticmethod
     async def parse_gold_treasure(new_article: dict):
         url = new_article["url"]
-        category = "new_card"
+        category = new_article["category"]
         # パースは一回でOK
         if await Logic.judge_iscrawled(url, category):
             return []
@@ -266,32 +263,7 @@ class Parser:
                 for newcard_img in newcard_img_divs
                 if newcard_img.get("src") is not None
             ]
-        return list(set(newcard_images))
-
-    @staticmethod
-    async def parse_deneblog_images(url: str) -> list:
-        soup = await Crawler.try_to_get_soup(url)
-        if soup == "FAILED":
-            return []
-        await Crawler.register_crawl(url, "HTTP_GET")
-        tablebox_div = soup.find("div", id="tablebox")
-        if tablebox_div is None:
-            return []
-        deneblog_images = [
-            img.get("src")
-            for img in tablebox_div.find_all("img")
-            if img.get("src") is not None
-        ]
-        return list(set(deneblog_images))
-
-    @staticmethod
-    async def parse_new_card(new_article: dict):
-        url = new_article["url"]
-        category = new_article["category"]
-        # パースは一回でOK
-        if await Logic.judge_iscrawled(url, category):
-            return []
-        return await Parser.parse_deneblog_images(url)
+        return sorted(list(set(newcard_images)))
 
     async def parse_stream(new_article: dict):
         url = new_article["url"]
@@ -307,4 +279,55 @@ class Parser:
                     SERVICE_NAME,
                 ),
             )
+        soup = await Crawler.try_to_get_soup(url)
+        if soup == "FAILED":
+            return
+        await Crawler.register_crawl(url, "HTTP_GET")
+        streamed_imgs = soup.find("div", class_="EntryMore").find_all("img")
+        streamed_images = [
+            streamed_img.get("src")
+            for streamed_img in streamed_imgs
+            if streamed_img.get("src") is not None
+        ]
+        return sorted(list(set(streamed_images)))
+
+    @staticmethod
+    async def parse_deneblog_images(url: str) -> list:
+        soup = await Crawler.try_to_get_soup(url)
+        if soup == "FAILED":
+            return []
+        await Crawler.register_crawl(url, "HTTP_GET")
+        tablebox_div = soup.find("div", id="tablebox")
+        if tablebox_div is None:
+            return []
+        deneblog_images = [
+            img.get("src")
+            for img in tablebox_div.find_all("img")
+            if img.get("src") is not None
+        ]
+        return sorted(list(set(deneblog_images)))
+
+    @staticmethod
+    async def parse_new_card(new_article: dict):
+        url = new_article["url"]
+        category = new_article["category"]
+        # パースは一回でOK
+        if await Logic.judge_iscrawled(url, category):
+            return []
         return await Parser.parse_deneblog_images(url)
+
+    # async def parse_stream(new_article: dict):
+    #     url = new_article["url"]
+    #     category = new_article["category"]
+    #     # 1回だけ追加する
+    #     if not await Logic.judge_iscrawled(url, category):
+    #         await UseMySQL.run_sql(
+    #             "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
+    #             (
+    #                 url,
+    #                 new_article["title"],
+    #                 category,
+    #                 SERVICE_NAME,
+    #             ),
+    #         )
+    #     return await Parser.parse_deneblog_images(url)

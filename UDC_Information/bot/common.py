@@ -1,6 +1,7 @@
 import io
 import os
 import asyncio
+import socket
 import traceback
 import discord
 from discord.ext import commands
