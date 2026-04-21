@@ -14,9 +14,9 @@ class Announce:
         announcement = await UseMySQL.run_sql(
             "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = %s AND is_announced = 0",
             (is_today,),
-        )[0]
+        )
         if announcement:
-            title, place, comment = announcement
+            title, place, comment = announcement[0]
             date = "今日" if is_today else "明日"
             text = f"@everyone\n\n{date}は{title}です！\n場所：{place}"
             if comment:
@@ -129,16 +129,15 @@ async def check(ctx):
         unsend_announcements = await UseMySQL.run_sql(
             "SELECT id, title, date, place, comment, is_today FROM announcements WHERE is_announced = 0 ORDER BY date ASC"
         )
-        print(unsend_announcements)
         if unsend_announcements:
-            message = "**送信予定アナウンス一覧**\n\n\n"
+            message = "**送信予定アナウンス一覧**\n\n"
             for unsend_announcement in unsend_announcements:
                 id, title, date, place, comment, is_today = unsend_announcement
                 today_or_tomorrow = "当日告知" if is_today else "前日告知"
-                message += f"ID: {id}\nタイトル: {title}\n日付: {date}({today_or_tomorrow})\n場所: {place}\n"
+                message += f"ID：{id}\nタイトル：{title}\n日付：{date}({today_or_tomorrow})\n場所：{place}\n"
                 if comment:
-                    message += f"コメント: {comment}\n"
-                message += "\n\n"
+                    message += f"コメント：{comment}\n"
+                message += "\n"
             message = message.strip()
             await ctx.send(message)
         else:
