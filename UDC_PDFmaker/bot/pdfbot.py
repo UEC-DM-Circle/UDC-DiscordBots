@@ -15,6 +15,9 @@ PDF_NAME = "artifact.pdf"
 # Bot定義
 client = commands.Bot(command_prefix="!", intents=discord.Intents.all())
 
+# とりあえずnohupからtmuxに変更したい
+# その後Dockerに以降
+
 
 def legal_url(url: str) -> bool:
     pattern = r"^https:\/\/gachi-matome\.com\/deckrecipe-detail-dm\/\?tcgrevo_deck_maker_deck_id=+"
