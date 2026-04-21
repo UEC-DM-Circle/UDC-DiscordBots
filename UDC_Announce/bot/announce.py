@@ -195,11 +195,17 @@ async def cancel(ctx, *args):
             except ValueError:
                 await ctx.send("IDは整数で指定してください。")
                 return
-            result = await UseMySQL.run_sql(
-                "UPDATE announcements SET is_announced = 1 WHERE id = %s AND is_announced = 0",
-                (announcement_id,),
+            specified_announcement = (
+                await UseMySQL.run_sql(
+                    "SELECT 1 FROM announcements WHERE id = %s", (announcement_id,)
+                )
+                != []
             )
-            if result is None:
+            if specified_announcement:
+                await UseMySQL.run_sql(
+                    "UPDATE announcements SET is_announced = 1 WHERE id = %s AND is_announced = 0",
+                    (announcement_id,),
+                )
                 await ctx.send(f"アナウンスの送信予定(ID: {arg})をキャンセルしました！")
             else:
                 await ctx.send(
