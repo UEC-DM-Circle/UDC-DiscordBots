@@ -3,7 +3,7 @@ from use_mysql import UseMySQL
 
 intent = discord.Intents.default()
 intent.message_content = True
-client = commands.Bot(command_prefix="~", intents=intent)
+client = commands.Bot(command_prefix="=", intents=intent)
 task = None
 
 
@@ -86,10 +86,119 @@ async def main():
             traceback.print_exc()
 
 
+async def check_channel(ctx) -> bool:
+    return ctx.channel.id in (TEST_CHANNEL_ID, BOARD_MEMBER_CHANNEL_ID)
+
+
+@client.command()
+async def help(ctx):
+    if await check_channel(ctx):
+        await ctx.send(
+            "```"
+            "**UDC_Announce Botの使い方**\n\n"
+            "【Botの動作確認】\n"
+            "=test\n"
+            "\n"
+            "【送信予定アナウンス一覧の確認】\n"
+            "=check\n"
+            "\n"
+            "【新規アナウンスの追加】\n"
+            "=add [タイトル] [日付] [場所] [時間] [コメント]\n"
+            "※日付はYYYY-MM-DD形式で指定してください。\n"
+            "　時間、コメントの指定は任意です。\n"
+            "例: =add 定例会 2025-12-31 西2-106 16:00~21:00 大会あり\n"
+            "\n"
+            "【送信予定のキャンセル】\n"
+            "=cancel [ID]\n"
+            "指定したIDのアナウンスの送信予定をキャンセルします。\n"
+            "```"
+        )
+
+
 @client.command()
 async def test(ctx):
-    if ctx.channel.id in (CHANNEL_ID, TEST_CHANNEL_ID):
+    if await check_channel(ctx):
         await ctx.send("Announce Bot is Working!")
+
+
+@client.command()
+async def check(ctx):
+    if await check_channel(ctx):
+        unsend_announcements = await UseMySQL.run_sql(
+            "SELECT id, title, date, place, comment, is_today FROM announcements WHERE date = CURDATE() AND is_announced = 0 ORDER BY date ASC"
+        )
+        if unsend_announcements:
+            message = "**送信予定アナウンス一覧**\n\n\n"
+            for unsend_announcement in unsend_announcements:
+                id, title, date, place, comment, is_today = unsend_announcement
+                today_or_tomorrow = "当日告知" if is_today else "前日告知"
+                message += f"ID: {id}\nタイトル: {title}\n日付: {date}({today_or_tomorrow})\n場所: {place}\n"
+                if comment:
+                    message += f"コメント: {comment}\n"
+                message += "\n\n"
+            message = message.strip()
+            await ctx.send(message)
+        else:
+            await ctx.send("送信予定のアナウンスがありません。新規追加をお願いします。")
+
+
+@client.command()
+async def add(ctx, *args):
+    if await check_channel(ctx):
+        if len(args) < 3 or len(args) > 5:
+            await ctx.send('不正な引数です。"=help"で使い方を確認してください。')
+        title = args[0]
+        date = args[1]
+        try:
+            date = datetime.datetime.strptime(args[1], "%Y-%m-%d").date()
+        except ValueError:
+            await ctx.send("日付はYYYY-MM-DD形式で指定してください。")
+            return
+        place = args[2]
+        comment = ""
+        if len(args) >= 4:
+            comment = args[3]
+        if len(args) >= 5:
+            comment += ", " + args[4]
+        if comment == "":
+            await UseMySQL.run_sql(
+                "INSERT INTO announcements (title, date, place, comment, is_today) VALUES (%s, %s, %s, NULL, 0)",
+                (title, date - datetime.timedelta(days=1), place),
+            )
+            await UseMySQL.run_sql(
+                "INSERT INTO announcements (title, date, place, comment, is_today) VALUES (%s, %s, %s, NULL, 1)",
+                (title, date, place),
+            )
+        else:
+            await UseMySQL.run_sql(
+                "INSERT INTO announcements (title, date, place, comment, is_today) VALUES (%s, %s, %s, %s, 0)",
+                (title, date - datetime.timedelta(days=1), place, comment),
+            )
+            await UseMySQL.run_sql(
+                "INSERT INTO announcements (title, date, place, comment, is_today) VALUES (%s, %s, %s, %s, 1)",
+                (title, date, place, comment),
+            )
+        await ctx.send("アナウンスを追加しました！")
+
+
+async def cancel(ctx, *args):
+    if await check_channel(ctx):
+        if len(args) != 1:
+            await ctx.send('不正な引数です。"=help"で使い方を確認してください。')
+            return
+        try:
+            announcement_id = int(args[0])
+        except ValueError:
+            await ctx.send("IDは整数で指定してください。")
+            return
+        result = await UseMySQL.run_sql(
+            "UPDATE announcements SET is_announced = 1 WHERE id = %s AND is_announced = 0",
+            (announcement_id,),
+        )
+        if result is not None:
+            await ctx.send("アナウンスの送信予定をキャンセルしました！")
+        else:
+            await ctx.send("指定されたIDのアナウンスが見つかりませんでした。")
 
 
 @client.event
