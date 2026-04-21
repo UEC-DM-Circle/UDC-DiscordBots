@@ -31,5 +31,5 @@ class UseMySQL:
                 await cur.execute(sql, params)
                 if sql.strip().upper().startswith("SELECT"):
                     rows = await cur.fetchall()
-                    return rows
+                    return [row for row in rows]
                 return None
