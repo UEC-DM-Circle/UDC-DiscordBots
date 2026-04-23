@@ -49,6 +49,9 @@ class Logic:
                 return "gp_result"
             # https://supersolenoid.jp/blog-entry-42770.html
             return "cs_result"
+        if "DMGP" in title:
+            # https://supersolenoid.jp/blog-entry-46211.html
+            return "gp_result"
         if any(x in title for x in ("新情報まとめ", "最新情報")):
             # https://supersolenoid.jp/blog-entry-45500.html
             return "stream"
@@ -58,9 +61,6 @@ class Logic:
         if "金トレジャー" in title:
             # https://supersolenoid.jp/blog-entry-45189.html
             return "gold_treasure"
-        if "DMGP" in title:
-            # https://supersolenoid.jp/blog-entry-46211.html
-            return "gp_result"
         return "etc"
 
     @staticmethod
