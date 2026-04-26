@@ -122,9 +122,12 @@ def get_deck_id(url: str) -> str | None:
 def get_json_data(deck_id: str) -> dict | None:
     # デッキIDからデッキデータを取得する
     api_url = f"{API_BASE_URL}{deck_id}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
     try:
         time.sleep(1)
-        res = requests.get(api_url, timeout=10)
+        res = requests.get(api_url, headers=headers, timeout=10)
         res.raise_for_status()
         register_crawl(api_url, "Amazon_API")
         return res.json()
