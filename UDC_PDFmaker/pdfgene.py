@@ -1,17 +1,4 @@
-import os
-import time
-from dotenv import load_dotenv
-from io import BytesIO
-from urllib.parse import urlparse, parse_qs
-import requests
-import cv2
-import numpy as np
-from reportlab.pdfgen import canvas
-from reportlab.lib.units import mm
-from reportlab.lib.pagesizes import A4, portrait
-from reportlab.lib.utils import ImageReader
-from PIL import Image
-from exception import PDFmakerError
+from common import *
 from use_mysql import UseMySQL
 
 # 定数
@@ -20,11 +7,6 @@ MARGIN_TOP = 10
 CARD_HEIGHT = 88
 CARD_WIDTH = 63
 COMP_RATIO = 100
-SERVICE_NAME = "UDC_PDFmaker"
-
-load_dotenv()
-API_BASE_URL = os.getenv("API_BASE_URL")
-IMAGE_BASE_URL = os.getenv("IMAGE_BASE_URL")
 
 
 def height(i: int) -> int:
@@ -119,14 +101,14 @@ def get_deck_id(url: str) -> str | None:
         return None
 
 
-def get_json_data(deck_id: str) -> dict | None:
+async def get_json_data(deck_id: str) -> dict | None:
     # デッキIDからデッキデータを取得する
     api_url = f"{API_BASE_URL}{deck_id}"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
     try:
-        time.sleep(1)
+        await asyncio.sleep(1)
         res = requests.get(api_url, headers=headers, timeout=10)
         res.raise_for_status()
         register_crawl(api_url, "Amazon_API")
@@ -151,12 +133,12 @@ def get_image_urls_from_json(card_infos: list) -> list[str]:
     return card_urls
 
 
-def get_image_url_list(deck_url: str) -> tuple | None:
+async def get_image_url_list(deck_url: str) -> tuple | None:
     # デッキURLから画像URLリストを取得する
     deck_id = get_deck_id(deck_url)
     if not deck_id:
         return None, None, None
-    data = get_json_data(deck_id)
+    data = await get_json_data(deck_id)
     if not data:
         return None, None, None
     main_cards = data.get("dmDeck", {}).get("main_cards", [])
@@ -190,13 +172,13 @@ def make_pdf_binary_from_images(image_urls: list) -> BytesIO:
     return buffer
 
 
-def generate_pdf_binary(url, ngr_option=False, nsp_option=False) -> BytesIO:
+async def generate_pdf_binary(url, ngr_option=False, nsp_option=False) -> BytesIO:
     try:
         # 画像URLリストの取得
-        print("STEP: Fetching image URLs...")
-        main_cards, gr_cards, extra_cards = get_image_url_list(url)
+        await write_log_message("画像URLを取得中...", "INFO")
+        main_cards, gr_cards, extra_cards = await get_image_url_list(url)
         if main_cards is None:
-            print("ERROR: 画像URLの取得に失敗しました。")
+            await write_log_message("画像URLの取得に失敗しました。", "ERROR")
             return None
         advance_extra_cards = []
         if not nsp_option:
@@ -213,22 +195,22 @@ def generate_pdf_binary(url, ngr_option=False, nsp_option=False) -> BytesIO:
             srcs += extra_cards
             srcs += advance_extra_cards
         # 画像のダウンロード
-        print("STEP: Downloading images...")
+        await write_log_message("画像をダウンロード中...", "INFO")
         imgs = []
         for src in srcs:
-            time.sleep(1)
+            await asyncio.sleep(1)
             r = requests.get(src)
             if r.status_code == 200:
                 imgs.append(crop_img(r.content))
                 register_crawl(src, "HTTP_GET")
         # pdf作成と画像追加
-        print("STEP: Generating PDF...")
+        await write_log_message("PDFを生成中...", "INFO")
         page = make_pdf_binary_from_images(imgs)
-        print("INFO: Completed!")
+        await write_log_message("PDFの生成に成功しました。", "INFO")
         return page
     except PDFmakerError as e:
-        print(f"ERROR: {str(e)}")
+        await write_log_message(str(e), "ERROR")
         return None
     except Exception as e:
-        print(f"UNEXPECTED ERROR: {str(e)}")
+        await write_log_message(str(e), "UNEXPECTED_ERROR")
         return None
