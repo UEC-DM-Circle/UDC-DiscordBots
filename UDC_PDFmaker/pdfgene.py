@@ -1,4 +1,5 @@
 import os
+import time
 from dotenv import load_dotenv
 from io import BytesIO
 from urllib.parse import urlparse, parse_qs
@@ -122,6 +123,7 @@ def get_json_data(deck_id: str) -> dict | None:
     # デッキIDからデッキデータを取得する
     api_url = f"{API_BASE_URL}{deck_id}"
     try:
+        time.sleep(1)
         res = requests.get(api_url, timeout=10)
         res.raise_for_status()
         register_crawl(api_url, "Amazon_API")
@@ -211,6 +213,7 @@ def generate_pdf_binary(url, ngr_option=False, nsp_option=False) -> BytesIO:
         print("STEP: Downloading images...")
         imgs = []
         for src in srcs:
+            time.sleep(1)
             r = requests.get(src)
             if r.status_code == 200:
                 imgs.append(crop_img(r.content))
