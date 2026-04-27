@@ -43,6 +43,8 @@ async def main():
                 )
                 for latest_tweet in latest_tweets:
                     await Twitter.send_tweet(latest_tweet)
+                    # Discord側でプレビューが開くように少し待つ
+                    await asyncio.sleep(3)
         except Exception as e:
             print(f"Error: {e}")
             traceback.print_exc()
