@@ -18,7 +18,7 @@ ALERT_CHANNEL_ID = int(os.environ.get("ALERT_CHANNEL_ID"))
 
 # ログの設定
 format = logging.Formatter(
-    "{asctime} {levelname:<8} {name}: {message}",
+    "[{asctime}] [{levelname:<8}] {name}: {message}",
     datefmt="%Y-%m-%d %H:%M:%S",
     style="{",
 )
