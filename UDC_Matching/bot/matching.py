@@ -148,7 +148,7 @@ async def on_message(message):
 
 @client.event
 async def on_ready():
-    print("Bot is ready!")
+    await write_log_message("Bot is ready!", "INFO")
 
 
 client.run(TOKEN, log_handler=None)
