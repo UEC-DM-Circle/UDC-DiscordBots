@@ -1,4 +1,6 @@
-py-cord
+cryptography
+davey
 discord.py
 mysql-connector-python
-cryptography
+py-cord
+pynacl
