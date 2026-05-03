@@ -1,5 +1,5 @@
-py-cord
-discord.py
 aiomysql
 cryptography
+discord.py
 jpholiday
+py-cord

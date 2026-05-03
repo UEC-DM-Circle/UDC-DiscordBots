@@ -5,9 +5,9 @@ import math
 import os
 import sys
 import traceback
+import aiomysql
 import discord
 from discord.ext import commands
-import aiomysql
 import jpholiday
 
 SERVICE_NAME = "UDC_Announce"
