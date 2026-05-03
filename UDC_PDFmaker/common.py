@@ -19,6 +19,7 @@ import requests
 from urllib.parse import urlparse, parse_qs
 from exception import PDFmakerError
 
+SERVICE_NAME = "UDC_PDFmaker"
 load_dotenv()
 TOKEN = os.getenv("TOKEN")
 GENERATE_CHANNEL_ID = int(os.getenv("GENERATE_CHANNEL_ID"))
@@ -26,7 +27,6 @@ TEST_CHANNEL_ID = int(os.getenv("TEST_CHANNEL_ID"))
 API_BASE_URL = os.getenv("API_BASE_URL")
 IMAGE_BASE_URL = os.getenv("IMAGE_BASE_URL")
 PDF_NAME = "artifact.pdf"
-SERVICE_NAME = "UDC_PDFmaker"
 
 # ログの設定
 LOG_FILE_NAME = f"{SERVICE_NAME.lower()}.log"
