@@ -1,8 +1,8 @@
 from common import *
-from use_mysql import UseMySQL
 from crawler import Crawler
-from parser import Parser
 from logic import Logic
+from parser import Parser
+from use_mysql import UseMySQL
 
 intent = discord.Intents.default()
 intent.message_content = True
@@ -188,7 +188,7 @@ async def main():
             for deneblog_new_article in deneblog_new_articles:
                 await Information.decide_parser(deneblog_new_article)
         except Exception as e:
-            print(f"Error: {e}")
+            await write_log_message(f"{e}", "ERROR")
             traceback.print_exc()
         await asyncio.sleep(60)
 
@@ -204,7 +204,7 @@ async def on_ready():
     global task
     await Crawler.init_session()
     await UseMySQL.init_pool()
-    print("Bot is ready!")
+    await write_log_message("Bot is ready!", "INFO")
     if task is None or task.done():
         task = asyncio.create_task(main())
 
