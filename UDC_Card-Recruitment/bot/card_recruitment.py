@@ -214,11 +214,32 @@ async def end(ctx, *, args):
     if await check_channel(ctx):
         arg_length = len(args)
         if arg_length > 0:
-            if args[0].isdecimal():
-                person = ctx.author.display_name
+            people = await UseMySQL.run_sql(
+                "SELECT DISTINCT person FROM recruitments WHERE active = 1", ()
+            )
+            people = sorted([person[0] for person in people])
+            if args[0] in people or not args[0].isdecimal():
+                if arg_length == 1:
+                    if args[0].isdecimal():
+                        key = int(args[0])
+                        person = ctx.author.display_name
+                        reqruitment = await UseMySQL.run_sql(
+                            "SELECT id, card FROM recruitments WHERE active = 1 AND id = %s AND person = %s",
+                            (key, person),
+                        )
+                        if reqruitment == []:
+                            await ctx.send(
+                                f"**{person}**さんの募集の中に指定されたID({key})のものはありませんでした。"
+                            )
+                            return
+                    else:
+                        await ctx.send("募集IDを数字で指定してください。")
+                        return
+                else:
+                    person = args[0]
+                    args = args[1:]
             else:
-                person = args[0]
-                args = args[1:]
+                person = ctx.author.display_name
             recruitments = await UseMySQL.run_sql(
                 "SELECT id FROM recruitments WHERE person = %s AND active = 1",
                 (person,),
@@ -264,13 +285,17 @@ async def end(ctx, *, args):
                     )
                 else:
                     message_to_send += f"**{ctx.author.display_name}**さんが**{person}**さんの以下の募集を終了しました。\n\n"
+                any_recruiment_ended = False
                 for ended_recruitment in ended_recruitments:
                     key = ended_recruitment[0]
                     card_name = ended_recruitment[1]
                     if not card_name:
                         message_to_send += f"・該当なし (ID: {key})\n"
                     else:
+                        any_recruiment_ended = True
                         message_to_send += f"・『{card_name}』(ID: {key})\n"
+                if not any_recruiment_ended:
+                    message_to_send = f"**{person}**さんの募集の中に指定されたIDのものは1つもありませんでした。\n"
             await ctx.send(message_to_send[:-1])
             return
         else:
