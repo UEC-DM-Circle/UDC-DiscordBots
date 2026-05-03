@@ -11,7 +11,9 @@ class Announce:
     @staticmethod
     async def calc_time_to_sleep():
         now = datetime.datetime.now()
-        next_time = now.replace(hour=now.hour + 1, minute=0, second=0, microsecond=0)
+        next_time = now.replace(
+            hour=(now.hour + 1) % 24, minute=0, second=0, microsecond=0
+        )
         return math.ceil((next_time - now).total_seconds())
 
     @staticmethod
