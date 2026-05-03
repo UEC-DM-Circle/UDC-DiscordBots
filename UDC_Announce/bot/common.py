@@ -16,6 +16,8 @@ TEST_CHANNEL_ID = int(os.environ.get("TEST_CHANNEL_ID"))
 BOARD_MEMBER_CHANNEL_ID = int(os.environ.get("BOARD_MEMBER_CHANNEL_ID"))
 ALERT_CHANNEL_ID = int(os.environ.get("ALERT_CHANNEL_ID"))
 SERVICE_NAME = "UDC_Announce"
+
+# ログの設定
 format = logging.Formatter(
     "[{asctime}] [{levelname:<8}] {name}: {message}",
     datefmt="%Y-%m-%d %H:%M:%S",
