@@ -42,8 +42,7 @@ class Announce:
         # if jpholiday.is_holiday(now.date()):
         #     # 祝日にはリマインドしない
         #     return
-        youbi = now.weekday()
-        if 0 <= youbi <= 4:
+        if 0 <= now.weekday() <= 4:
             next_week_announcements = await UseMySQL.run_sql(
                 "SELECT id FROM announcements WHERE date BETWEEN CURDATE() + INTERVAL (8 - DAYOFWEEK(CURDATE())) DAY AND CURDATE() + INTERVAL (14 - DAYOFWEEK(CURDATE())) DAY AND is_announced = 0"
             )
