@@ -1,7 +1,7 @@
-py-cord
-discord.py
-beautifulsoup4
-pillow
 aiohttp
 aiomysql
+beautifulsoup4
 cryptography
+discord.py
+pillow
+py-cord

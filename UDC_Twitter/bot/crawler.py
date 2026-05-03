@@ -54,10 +54,11 @@ class Crawler:
             if response.status == 200:
                 return (await response.json()).get("data", [])
             elif response.status == 429:
-                print(f"レート制限に到達しました。")
+                await write_log_message("レート制限に到達しました。", "ERROR")
                 await asyncio.sleep(200 * (attempt + 1))
             else:
-                print(
-                    f"ツイートの取得に失敗: {response.status}, {await response.text()}"
+                await write_log_message(
+                    "ツイートの取得に失敗しました。",
+                    "ERROR",
                 )
         return []

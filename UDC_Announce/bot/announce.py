@@ -12,7 +12,7 @@ class Announce:
     async def calc_time_to_sleep():
         now = datetime.datetime.now()
         next_time = now.replace(hour=now.hour + 1, minute=0, second=0, microsecond=0)
-        return (next_time - now).total_seconds()
+        return math.ceil((next_time - now).total_seconds())
 
     @staticmethod
     async def announce(is_today: bool):
@@ -51,6 +51,11 @@ class Announce:
                 await board_member_channel.send("@everyone\n" + message)
                 await alert_channel.send(message)
 
+    @staticmethod
+    async def sleep_with_log_message(sec: int):
+        await write_log_message(f"Sleeping for {sec} seconds...", "INFO")
+        await asyncio.sleep(sec)
+
     @classmethod
     async def check_time(cls):
         now = datetime.datetime.now()
@@ -64,23 +69,23 @@ class Announce:
             seconds_until = (next_morning - now).total_seconds()
             wait_hours = int(seconds_until // 3600)
             seconds_until = math.ceil(seconds_until % 3600)
-            await asyncio.sleep(seconds_until)
+            await cls.sleep_with_log_message(seconds_until)
             for _ in range(wait_hours):
                 seconds_until = await cls.calc_time_to_sleep()
-                await asyncio.sleep(seconds_until)
+                await cls.sleep_with_log_message(seconds_until)
             await cls.announce(is_today=1)
         now = datetime.datetime.now()
         next_evening = now.replace(hour=18, minute=0, second=0, microsecond=0)
         seconds_until = (next_evening - now).total_seconds()
         wait_hours = int(seconds_until // 3600)
         seconds_until = math.ceil(seconds_until % 3600)
-        await asyncio.sleep(seconds_until)
+        await cls.sleep_with_log_message(seconds_until)
         for _ in range(wait_hours):
             now = datetime.datetime.now()
             if now.hour == 12:
                 await cls.remind_task()
             seconds_until = await cls.calc_time_to_sleep()
-            await asyncio.sleep(seconds_until)
+            await cls.sleep_with_log_message(seconds_until)
         await cls.announce(is_today=0)
 
     @classmethod
@@ -99,7 +104,7 @@ async def main():
         try:
             await Announce.check_time()
         except Exception as e:
-            print(f"Error: {e}")
+            await write_log_message(f"{e}", "ERROR")
             traceback.print_exc()
 
 
@@ -237,7 +242,7 @@ async def cancel(ctx, *args):
 async def on_ready():
     global task
     await UseMySQL.init_pool()
-    print("Bot is ready!")
+    await write_log_message("Bot is ready!", "INFO")
     if task is None or task.done():
         task = asyncio.create_task(main())
 
