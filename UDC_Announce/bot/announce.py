@@ -104,7 +104,7 @@ async def main():
         try:
             await Announce.check_time()
         except Exception as e:
-            print(f"Error: {e}")
+            await write_log_message(f"{e}", "ERROR")
             traceback.print_exc()
 
 
