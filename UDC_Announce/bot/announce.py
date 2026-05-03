@@ -63,7 +63,7 @@ class Announce:
                 next_morning += datetime.timedelta(days=1)
             seconds_until = (next_morning - now).total_seconds()
             wait_hours = int(seconds_until // 3600)
-            seconds_until %= 3600
+            seconds_until = math.ceil(seconds_until % 3600)
             await asyncio.sleep(seconds_until)
             for _ in range(wait_hours):
                 seconds_until = await cls.calc_time_to_sleep()
@@ -73,7 +73,7 @@ class Announce:
         next_evening = now.replace(hour=18, minute=0, second=0, microsecond=0)
         seconds_until = (next_evening - now).total_seconds()
         wait_hours = int(seconds_until // 3600)
-        seconds_until %= 3600
+        seconds_until = math.ceil(seconds_until % 3600)
         await asyncio.sleep(seconds_until)
         for _ in range(wait_hours):
             now = datetime.datetime.now()
