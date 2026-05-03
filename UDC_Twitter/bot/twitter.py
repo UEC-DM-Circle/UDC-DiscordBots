@@ -1,6 +1,6 @@
 from common import *
-from use_mysql import UseMySQL
 from crawler import Crawler
+from use_mysql import UseMySQL
 
 intent = discord.Intents.default()
 intent.message_content = True
@@ -46,7 +46,7 @@ async def main():
                     # Discord側でプレビューが開くように少し待つ
                     await asyncio.sleep(3)
         except Exception as e:
-            print(f"Error: {e}")
+            await write_log_message(f"{e}", "ERROR")
             traceback.print_exc()
         # 15分ごとにクロール
         await asyncio.sleep(15 * 60)
@@ -63,7 +63,7 @@ async def on_ready():
     global task
     await UseMySQL.init_pool()
     await Crawler.init_session()
-    print("Bot is ready!")
+    await write_log_message("Bot is ready!", "INFO")
     if task is None or task.done():
         task = asyncio.create_task(main())
 
