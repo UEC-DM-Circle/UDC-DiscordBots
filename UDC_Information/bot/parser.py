@@ -1,7 +1,7 @@
 from common import *
-from use_mysql import UseMySQL
 from crawler import Crawler
 from logic import Logic
+from use_mysql import UseMySQL
 
 
 class Parser:

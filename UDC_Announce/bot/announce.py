@@ -9,8 +9,14 @@ task = None
 
 class Announce:
     @staticmethod
+    async def calc_time_to_sleep():
+        now = datetime.datetime.now()
+        next_time = now.replace(hour=now.hour + 1, minute=0, second=0, microsecond=0)
+        return math.ceil((next_time - now).total_seconds())
+
+    @staticmethod
     async def announce(is_today: bool):
-        channel = client.get_channel(CHANNEL_ID)
+        channel = client.get_channel(ANNOUNCE_CHANNEL_ID)
         announcement = await UseMySQL.run_sql(
             "SELECT title, place, comment FROM announcements WHERE date = CURDATE() AND is_today = %s AND is_announced = 0",
             (is_today,),
@@ -28,43 +34,59 @@ class Announce:
             )
 
     @staticmethod
-    async def check_task():
-        test_channel = client.get_channel(TEST_CHANNEL_ID)
-        next_announcement = await UseMySQL.run_sql(
-            "SELECT * FROM announcements WHERE date > CURDATE()"
-        )[0]
-        if not next_announcement:
-            await test_channel.send("日程を登録してください！")
+    async def remind_task():
+        # 月～金の12:00に、今日から見て来週の予定が何もなければリマインドする
+        board_member_channel = client.get_channel(BOARD_MEMBER_CHANNEL_ID)
+        alert_channel = client.get_channel(ALERT_CHANNEL_ID)
+        now = datetime.datetime.now()
+        # if jpholiday.is_holiday(now.date()):
+        #     # 祝日にはリマインドしない
+        #     return
+        if 0 <= now.weekday() <= 4:
+            next_week_announcements = await UseMySQL.run_sql(
+                "SELECT id FROM announcements WHERE date BETWEEN CURDATE() + INTERVAL (8 - DAYOFWEEK(CURDATE())) DAY AND CURDATE() + INTERVAL (14 - DAYOFWEEK(CURDATE())) DAY AND is_announced = 0"
+            )
+            if not next_week_announcements:
+                message = "来週の予定がありません。\n教室の確保及び予定の新規追加をお願いします！"
+                await board_member_channel.send("@everyone\n" + message)
+                await alert_channel.send(message)
+
+    @staticmethod
+    async def sleep_with_log_message(sec: int):
+        await write_log_message(f"Sleeping for {sec} seconds...", "INFO")
+        await asyncio.sleep(sec)
 
     @classmethod
     async def check_time(cls):
         now = datetime.datetime.now()
         next_morning = now.replace(hour=6, minute=0, second=0, microsecond=0)
         if 6 <= now.hour < 18:
-            pass
+            if now.hour == 12:
+                await cls.remind_task()
         else:
             if 18 <= now.hour <= 23:
                 next_morning += datetime.timedelta(days=1)
             seconds_until = (next_morning - now).total_seconds()
             wait_hours = int(seconds_until // 3600)
-            seconds_until %= 3600
-            await asyncio.sleep(seconds_until)
+            seconds_until = math.ceil(seconds_until % 3600)
+            await cls.sleep_with_log_message(seconds_until)
             for _ in range(wait_hours):
-                await cls.check_task()
-                await asyncio.sleep(3600)
+                seconds_until = await cls.calc_time_to_sleep()
+                await cls.sleep_with_log_message(seconds_until)
             await cls.announce(is_today=1)
-            await cls.check_task()
         now = datetime.datetime.now()
         next_evening = now.replace(hour=18, minute=0, second=0, microsecond=0)
         seconds_until = (next_evening - now).total_seconds()
         wait_hours = int(seconds_until // 3600)
-        seconds_until %= 3600
-        await asyncio.sleep(seconds_until)
+        seconds_until = math.ceil(seconds_until % 3600)
+        await cls.sleep_with_log_message(seconds_until)
         for _ in range(wait_hours):
-            await cls.check_task()
-            await asyncio.sleep(3600)
+            now = datetime.datetime.now()
+            if now.hour == 12:
+                await cls.remind_task()
+            seconds_until = await cls.calc_time_to_sleep()
+            await cls.sleep_with_log_message(seconds_until)
         await cls.announce(is_today=0)
-        await cls.check_task()
 
     @classmethod
     async def check_on_ready(cls):
@@ -82,7 +104,7 @@ async def main():
         try:
             await Announce.check_time()
         except Exception as e:
-            print(f"Error: {e}")
+            await write_log_message(f"{e}", "ERROR")
             traceback.print_exc()
 
 
@@ -108,7 +130,7 @@ async def guide(ctx):
             "=add [タイトル] [日付] [場所] [時間] [コメント]\n"
             "※日付はYYYY-MM-DD形式で指定してください。\n"
             "　時間、コメントの指定は任意です。\n"
-            "例: =add 定例会 2025-12-31 西2-106 16:00~21:00 大会あり\n"
+            "　例: =add 定例会 2025-12-31 西2-106 16:00~21:00 大会あり\n"
             "\n"
             "【送信予定のキャンセル】\n"
             "=cancel [ID]\n"
@@ -142,7 +164,9 @@ async def check(ctx):
             message = message.strip()
             await ctx.send(message)
         else:
-            await ctx.send("送信予定のアナウンスがありません。新規追加をお願いします。")
+            await ctx.send(
+                "送信予定のアナウンスがありません。\n新規追加をお願いします！"
+            )
 
 
 @client.command()
@@ -218,7 +242,7 @@ async def cancel(ctx, *args):
 async def on_ready():
     global task
     await UseMySQL.init_pool()
-    print("Bot is ready!")
+    await write_log_message("Bot is ready!", "INFO")
     if task is None or task.done():
         task = asyncio.create_task(main())
 

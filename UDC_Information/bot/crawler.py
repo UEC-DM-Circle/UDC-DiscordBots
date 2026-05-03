@@ -34,7 +34,8 @@ class Crawler:
             # DNSエラーや接続拒否など、リトライしても無駄なネットワークエラーは即終了
             return "FATAL_ERROR"
         except Exception as e:
-            print(f"Exception: {type(e).__name__} - {e}")
+            await write_log_message(f"{e}", "ERROR")
+            traceback.print_exc()
             return "ERROR"
 
     @classmethod
@@ -58,7 +59,8 @@ class Crawler:
                 text = await resp.text()
                 return BeautifulSoup(text, "html.parser")
         except Exception as e:
-            print(f"Exception: {type(e).__name__} - {e}")
+            await write_log_message(f"{e}", "ERROR")
+            traceback.print_exc()
             return "ERROR"
 
     @classmethod
