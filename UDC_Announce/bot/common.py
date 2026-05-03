@@ -3,7 +3,6 @@ import datetime
 import logging
 import math
 import os
-import sys
 import traceback
 import aiomysql
 import discord
@@ -19,13 +18,13 @@ ALERT_CHANNEL_ID = int(os.environ.get("ALERT_CHANNEL_ID"))
 
 # ログの設定
 format = logging.Formatter(
-    "[{asctime}] [{levelname:<8}] {name}: {message}",
+    "{asctime} {levelname:<8} {name}: {message}",
     datefmt="%Y-%m-%d %H:%M:%S",
     style="{",
 )
-handler = logging.StreamHandler(sys.stdout)
+handler = logging.StreamHandler()
 handler.setFormatter(format)
-discord.utils.setup_logging(level=logging.INFO, handler=handler)
+logging.basicConfig(level=logging.INFO, handlers=[handler], force=True)
 bot_logger = logging.getLogger(SERVICE_NAME)
 
 

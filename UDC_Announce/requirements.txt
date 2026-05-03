@@ -1,5 +1,7 @@
 aiomysql
 cryptography
+davey
 discord.py
 jpholiday
 py-cord
+pynacl
