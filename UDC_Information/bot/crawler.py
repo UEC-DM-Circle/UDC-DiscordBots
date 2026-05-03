@@ -9,8 +9,9 @@ class Crawler:
     @classmethod
     async def init_session(cls):
         if cls.session is None:
+            connector = aiohttp.TCPConnector(family=socket.AF_INET)
             timeout = aiohttp.ClientTimeout(total=30)
-            cls.session = aiohttp.ClientSession(timeout=timeout)
+            cls.session = aiohttp.ClientSession(timeout=timeout, connector=connector)
 
     @classmethod
     async def close_session(cls):
@@ -29,13 +30,20 @@ class Crawler:
                 image = Image.open(io.BytesIO(data))
                 image.verify()
                 return image.size
-        except Exception:
+        except aiohttp.client_exceptions.ClientConnectorError:
+            # DNSエラーや接続拒否など、リトライしても無駄なネットワークエラーは即終了
+            return "FATAL_ERROR"
+        except Exception as e:
+            await write_log_message(f"{e}", "ERROR")
+            traceback.print_exc()
             return "ERROR"
 
     @classmethod
     async def try_to_get_image_size(cls, url: str, retries: int = 5) -> tuple:
         for _ in range(retries):
             size = await cls.get_image_size(url)
+            if size == "FATAL_ERROR":
+                break
             if size != "ERROR":
                 return size
         # サイズが見つからない場合は(0, 0)を返す
@@ -50,7 +58,9 @@ class Crawler:
                     return "ERROR"
                 text = await resp.text()
                 return BeautifulSoup(text, "html.parser")
-        except Exception:
+        except Exception as e:
+            await write_log_message(f"{e}", "ERROR")
+            traceback.print_exc()
             return "ERROR"
 
     @classmethod

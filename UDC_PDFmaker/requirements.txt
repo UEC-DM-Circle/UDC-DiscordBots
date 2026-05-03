@@ -15,6 +15,7 @@ numpy==2.4.1
 opencv-python==4.13.0.90
 pillow==12.1.0
 propcache==0.4.1
+pynacl==1.6.2
 python-dotenv==1.2.1
 reportlab==4.4.9
 requests==2.32.5
