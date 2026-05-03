@@ -47,8 +47,8 @@ class Announce:
                 "SELECT id FROM announcements WHERE date BETWEEN CURDATE() + INTERVAL (8 - DAYOFWEEK(CURDATE())) DAY AND CURDATE() + INTERVAL (14 - DAYOFWEEK(CURDATE())) DAY AND is_announced = 0"
             )
             if not next_week_announcements:
-                message = "@everyone\n来週の予定がありません。\n教室の確保及び予定の新規追加をお願いします！"
-                await board_member_channel.send(message)
+                message = "来週の予定がありません。\n教室の確保及び予定の新規追加をお願いします！"
+                await board_member_channel.send("@everyone\n" + message)
                 await alert_channel.send(message)
 
     @classmethod
