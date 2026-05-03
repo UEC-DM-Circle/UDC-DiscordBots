@@ -2,7 +2,6 @@ import asyncio
 import datetime
 import logging
 import os
-import sys
 import traceback
 import aiohttp
 import aiomysql
