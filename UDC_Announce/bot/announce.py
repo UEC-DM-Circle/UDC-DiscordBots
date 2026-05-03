@@ -32,7 +32,7 @@ class Announce:
         test_channel = client.get_channel(TEST_CHANNEL_ID)
         next_announcement = await UseMySQL.run_sql(
             "SELECT * FROM announcements WHERE date > CURDATE()"
-        )[0]
+        )
         if not next_announcement:
             await test_channel.send("日程を登録してください！")
 
