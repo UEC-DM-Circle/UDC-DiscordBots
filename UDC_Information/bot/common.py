@@ -2,7 +2,6 @@ import asyncio
 import io
 import logging
 import os
-import sys
 import socket
 import traceback
 import aiohttp
@@ -30,9 +29,9 @@ format = logging.Formatter(
     datefmt="%Y-%m-%d %H:%M:%S",
     style="{",
 )
-handler = logging.StreamHandler(sys.stdout)
+handler = logging.StreamHandler()
 handler.setFormatter(format)
-discord.utils.setup_logging(level=logging.INFO, handler=handler)
+logging.basicConfig(level=logging.INFO, handlers=[handler], force=True)
 bot_logger = logging.getLogger(SERVICE_NAME)
 
 

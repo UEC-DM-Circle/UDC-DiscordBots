@@ -1,2 +1,4 @@
+davey
 discord.py
 py-cord
+pynacl
