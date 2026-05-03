@@ -9,6 +9,7 @@ import cv2
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
+import mysql.connector
 import numpy as np
 from PIL import Image
 from reportlab.pdfgen import canvas
