@@ -66,4 +66,4 @@ async def pdfmake(ctx, *args):
         await ctx.send("予期せぬエラーが発生しました。管理者に連絡してください。")
 
 
-client.run(TOKEN)
+client.run(TOKEN, log_handler=None)

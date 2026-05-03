@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import logging
 import os
 import random
 import discord
@@ -11,13 +12,33 @@ intent.message_content = True
 
 client = commands.Bot(command_prefix="?", intents=intent)
 
+SERVICE_NAME = "UDC_Matching"
 channel_id = int(os.getenv("CHANNEL_ID"))
 test_id = int(os.getenv("TEST_ID"))
 members = []
 prev_match_list = []
-
 # 0:待機中 1:試合中
 mode = 0
+
+# ログの設定
+format = logging.Formatter(
+    "[{asctime}] [{levelname:<8}] {name}: {message}",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    style="{",
+)
+handler = logging.StreamHandler()
+handler.setFormatter(format)
+logging.basicConfig(level=logging.INFO, handlers=[handler], force=True)
+bot_logger = logging.getLogger(SERVICE_NAME)
+
+
+async def write_log_message(message: str, category: str):
+    if category == "INFO":
+        bot_logger.info(message)
+    elif category == "ERROR":
+        bot_logger.error(message)
+    else:
+        bot_logger.warning(message)
 
 
 async def matching():
@@ -127,7 +148,7 @@ async def on_message(message):
 
 @client.event
 async def on_ready():
-    print("Bot is ready!")
+    await write_log_message("Bot is ready!", "INFO")
 
 
-client.run(TOKEN)
+client.run(TOKEN, log_handler=None)

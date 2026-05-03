@@ -2,6 +2,8 @@ aiohttp
 aiomysql
 beautifulsoup4
 cryptography
+davey
 discord.py
 pillow
 py-cord
+pynacl
