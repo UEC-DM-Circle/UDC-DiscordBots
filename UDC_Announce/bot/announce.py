@@ -41,9 +41,9 @@ class Announce:
         board_member_channel = client.get_channel(BOARD_MEMBER_CHANNEL_ID)
         alert_channel = client.get_channel(ALERT_CHANNEL_ID)
         now = datetime.datetime.now()
-        # if jpholiday.is_holiday(now.date()):
-        #     # 祝日にはリマインドしない
-        #     return
+        if jpholiday.is_holiday(now.date()):
+            # 祝日にはリマインドしない
+            return
         if 0 <= now.weekday() <= 4:
             next_week_announcements = await UseMySQL.run_sql(
                 "SELECT id FROM announcements WHERE date BETWEEN CURDATE() + INTERVAL (8 - DAYOFWEEK(CURDATE())) DAY AND CURDATE() + INTERVAL (14 - DAYOFWEEK(CURDATE())) DAY AND is_announced = 0"
