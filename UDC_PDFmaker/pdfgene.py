@@ -90,14 +90,28 @@ def register_crawl(target_url: str, method: str):
     )
 
 
-def get_deck_id(url: str) -> str | None:
+def register_api_status_code(status_code: int, method: str):
+    latest_crawl_id = UseMySQL.run_sql(
+        "SELECT id FROM crawls WHERE method = %s AND service = %s ORDER BY created_at DESC LIMIT 1",
+        (method, SERVICE_NAME),
+    )
+    if not latest_crawl_id:
+        return
+    UseMySQL.run_sql(
+        "INSERT INTO api_status_codes (crawl_id, status_code) VALUES (%s, %s)",
+        (latest_crawl_id[0][0], status_code),
+    )
+
+
+async def get_deck_id(url: str) -> str | None:
     # URLからデッキIDを取得する
     try:
         query = urlparse(url).query
         params = parse_qs(query)
         return params.get("tcgrevo_deck_maker_deck_id", [None])[0]
-    except Exception:
-        print("ERROR: デッキIDの取得に失敗しました。")
+    except Exception as e:
+        await write_log_message("デッキIDの取得に失敗しました。", "ERROR")
+        await write_log_message(f"{e}", "ERROR")
         return None
 
 
@@ -110,11 +124,13 @@ async def get_json_data(deck_id: str) -> dict | None:
     try:
         await asyncio.sleep(1)
         res = requests.get(api_url, headers=headers, timeout=10)
-        res.raise_for_status()
         register_crawl(api_url, "Amazon_API")
+        register_api_status_code(res.status_code, "Amazon_API")
+        res.raise_for_status()
         return res.json()
-    except Exception:
-        print("ERROR: デッキデータの取得に失敗しました。")
+    except Exception as e:
+        await write_log_message("デッキデータの取得に失敗しました。", "ERROR")
+        await write_log_message(f"{e}", "ERROR")
         return None
 
 
@@ -135,7 +151,7 @@ def get_image_urls_from_json(card_infos: list) -> list[str]:
 
 async def get_image_url_list(deck_url: str) -> tuple | None:
     # デッキURLから画像URLリストを取得する
-    deck_id = get_deck_id(deck_url)
+    deck_id = await get_deck_id(deck_url)
     if not deck_id:
         return None, None, None
     data = await get_json_data(deck_id)
@@ -209,8 +225,8 @@ async def generate_pdf_binary(url, ngr_option=False, nsp_option=False) -> BytesI
         await write_log_message("PDFの生成に成功しました。", "INFO")
         return page
     except PDFmakerError as e:
-        await write_log_message(str(e), "ERROR")
+        await write_log_message(f"{e}", "ERROR")
         return None
     except Exception as e:
-        await write_log_message(str(e), "UNEXPECTED_ERROR")
+        await write_log_message(f"{e}", "FATAL")
         return None
