@@ -56,10 +56,10 @@ async def pdfmake(ctx, *args):
         await ctx.send(file=discord.File(fp=pdf_binary, filename=PDF_NAME))
         await ctx.send(f"{ctx.author.mention} PDFの生成が完了しました。")
     except PDFmakerError as e:
-        await write_log_message(str(e), "ERROR")
-        await ctx.send(str(e))
+        await write_log_message(f"{e}", "ERROR")
+        await ctx.send(f"{e}")
     except Exception as e:
-        await write_log_message(str(e), "UNEXPECTED_ERROR")
+        await write_log_message(f"{e}", "FATAL")
         await ctx.send("予期せぬエラーが発生しました。管理者に連絡してください。")
 
 
