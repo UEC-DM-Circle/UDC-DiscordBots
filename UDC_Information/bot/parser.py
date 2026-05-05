@@ -85,9 +85,9 @@ class Parser:
             return []
         # 中身を見て、大会情報を抜き出す！
         soup = await Crawler.try_to_get_soup(url)
-        await Crawler.register_crawl(url, "HTTP_GET")
         if soup == "FAILED":
             return
+        await Crawler.register_crawl(url, "HTTP_GET")
         return await Parser.parse_soup_of_many_cs_results(soup)
 
     @staticmethod
