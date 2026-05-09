@@ -178,6 +178,58 @@ class Parser:
         return f"{result_sentence}\n\n{names}", images
 
     @staticmethod
+    async def parse_ryusei_cs_result(new_article: dict):
+        url = new_article["url"]
+        category = new_article["category"]
+        # パースは一回でOK
+        if await Logic.judge_iscrawled(url, category):
+            return "", []
+        soup = await Crawler.try_to_get_soup(url)
+        if soup == "FAILED":
+            return "", []
+        await Crawler.register_crawl(url, "HTTP_GET")
+        divisions = soup.find_all("div", class_="caption_white")
+        result_div = divisions[0]
+        for br in result_div.find_all("br"):
+            br.replace_with("\n")
+        result_sentence = result_div.text
+        names_div = divisions[1]
+        for br in names_div.find_all("br"):
+            br.replace_with("\n")
+        names = names_div.text
+        relate_url_div = soup.find("div", class_="EntryMore").find_all("a")
+        relate_urls = [
+            relate_url.get("href")
+            for relate_url in relate_url_div
+            if relate_url.get("href") is not None
+        ]
+        result_url = ""
+        images = []
+        for relate_url in relate_urls:
+            if "https://harutomoshi-channel.com/" in relate_url:
+                result_url = relate_url
+                break
+        if result_url != "":
+            soup = await Crawler.try_to_get_soup(result_url)
+            if soup == "FAILED":
+                return
+            await Crawler.register_crawl(result_url, "HTTP_GET")
+            figures = soup.find_all("figure", class_="wp-block-image")
+            images = [
+                figure.find("img").get("src")
+                for figure in figures
+                if figure.find("img") is not None
+            ]
+            # 最後の一個は次回予告なので除外する
+            images = images[:-1]
+            # チーム戦などの場合があれば対応する
+        else:
+            # 流星CSが協賛している別のCSの場合
+            new_article["category"] = "cs_result"
+            return await Parser.parse_cs_result(new_article)
+        return f"{result_sentence}\n\n{names}", images
+
+    @staticmethod
     async def parse_gp_result(new_article: dict):
         url = new_article["url"]
         soup = await Crawler.try_to_get_soup(url)

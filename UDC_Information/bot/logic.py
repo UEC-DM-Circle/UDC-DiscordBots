@@ -44,6 +44,9 @@ class Logic:
                 # https://supersolenoid.jp/blog-entry-42860.html
                 # https://supersolenoid.jp/blog-entry-42944.html
                 return "hatti_cs_result"
+            if "流星CS" in title:
+                # https://supersolenoid.jp/blog-entry-46417.html
+                return "ryusei_cs_result"
             if "DMGP" in title:
                 # https://supersolenoid.jp/blog-entry-42560.html
                 return "gp_result"
