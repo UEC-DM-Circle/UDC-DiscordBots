@@ -60,6 +60,18 @@ class Information:
                 )
                 await Information.send_message(DISCORD_RESULT_CHANNEL_ID, message)
                 await Information.send_result_images(result_images, url, category)
+            case "ryusei_cs_result":
+                message, result_images = await Parser.parse_ryusei_cs_result(
+                    new_article
+                )
+                if not message or not result_images:
+                    return
+                await UseMySQL.run_sql(
+                    "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
+                    (url, title, category, SERVICE_NAME),
+                )
+                await Information.send_message(DISCORD_RESULT_CHANNEL_ID, message)
+                await Information.send_result_images(result_images, url, category)
             case "gp_result":
                 message, result_images = await Parser.parse_gp_result(new_article)
                 if not message or not result_images:
@@ -77,11 +89,11 @@ class Information:
                 message, result_images = await Parser.parse_cs_result(new_article)
                 if not message or not result_images:
                     return
-                await Information.send_message(DISCORD_RESULT_CHANNEL_ID, message)
                 await UseMySQL.run_sql(
                     "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
                     (url, title, category, SERVICE_NAME),
                 )
+                await Information.send_message(DISCORD_RESULT_CHANNEL_ID, message)
                 await Information.send_result_images(result_images, url, category)
             case "gold_treasure":
                 newcard_images = await Parser.parse_gold_treasure(new_article)
@@ -165,6 +177,7 @@ class Information:
 
     @staticmethod
     async def send_message(channel_id: int, message: str):
+        message = message.replace("\n\n\n", "\n\n")
         await client.get_channel(channel_id).send(message)
 
 
