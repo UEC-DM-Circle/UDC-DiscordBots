@@ -241,9 +241,17 @@ class Parser:
     async def parse_gold_treasure(new_article: dict):
         url = new_article["url"]
         category = new_article["category"]
-        # パースは一回でOK
-        if await Logic.judge_iscrawled(url, category):
-            return []
+        # 1回だけ追加する
+        if not await Logic.judge_iscrawled(url, category):
+            await UseMySQL.run_sql(
+                "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
+                (
+                    url,
+                    new_article["title"],
+                    category,
+                    SERVICE_NAME,
+                ),
+            )
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
             return []
