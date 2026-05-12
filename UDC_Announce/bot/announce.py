@@ -9,12 +9,10 @@ task = None
 
 class Announce:
     @staticmethod
-    async def calc_time_to_sleep():
-        now = datetime.datetime.now()
-        next_time = now.replace(
-            hour=(now.hour + 1) % 24, minute=0, second=0, microsecond=0
-        )
-        return math.ceil((next_time - now).total_seconds())
+    async def sleep_with_log_message(sec: int):
+        if sec > 0:
+            await write_log_message(f"Sleeping for {sec} seconds...", "INFO")
+            await asyncio.sleep(sec)
 
     @staticmethod
     async def announce(is_today: bool):
@@ -53,42 +51,49 @@ class Announce:
                 await board_member_channel.send("@everyone\n" + message)
                 await alert_channel.send(message)
 
-    @staticmethod
-    async def sleep_with_log_message(sec: int):
-        await write_log_message(f"Sleeping for {sec} seconds...", "INFO")
-        await asyncio.sleep(sec)
+    @classmethod
+    async def wait_until(cls, target_hour: int):
+        while True:
+            now = datetime.datetime.now()
+            # 目標時刻を「今日」に設定
+            target = now.replace(hour=target_hour, minute=0, second=0, microsecond=0)
+            # もし目標時刻が既に過ぎているなら「明日」に設定
+            if target <= now:
+                target += datetime.timedelta(days=1)
+            # 残り秒数を計算
+            diff = (target - datetime.datetime.now()).total_seconds()
+            if diff <= 0:
+                break
+            # 最大1時間待機し、再度時刻をチェック(時間の微調整)
+            wait_sec = min(diff, 3600)
+            await cls.sleep_with_log_message(math.ceil(wait_sec))
+            # 目標時刻まで残り1秒未満になったらループ終了
+            if diff <= 1:
+                break
 
     @classmethod
     async def check_time(cls):
-        now = datetime.datetime.now()
-        next_morning = now.replace(hour=6, minute=0, second=0, microsecond=0)
-        if 6 <= now.hour < 18:
-            if now.hour == 12:
-                await cls.remind_task()
-        else:
-            if 18 <= now.hour <= 23:
-                next_morning += datetime.timedelta(days=1)
-            seconds_until = (next_morning - now).total_seconds()
-            wait_hours = int(seconds_until // 3600)
-            seconds_until = math.ceil(seconds_until % 3600)
-            await cls.sleep_with_log_message(seconds_until)
-            for _ in range(wait_hours):
-                seconds_until = await cls.calc_time_to_sleep()
-                await cls.sleep_with_log_message(seconds_until)
-            await cls.announce(is_today=1)
-        now = datetime.datetime.now()
-        next_evening = now.replace(hour=18, minute=0, second=0, microsecond=0)
-        seconds_until = (next_evening - now).total_seconds()
-        wait_hours = int(seconds_until // 3600)
-        seconds_until = math.ceil(seconds_until % 3600)
-        await cls.sleep_with_log_message(seconds_until)
-        for _ in range(wait_hours):
-            now = datetime.datetime.now()
-            if now.hour == 12:
-                await cls.remind_task()
-            seconds_until = await cls.calc_time_to_sleep()
-            await cls.sleep_with_log_message(seconds_until)
-        await cls.announce(is_today=0)
+        await write_log_message("Time check loop started.", "INFO")
+        while True:
+            try:
+                now = datetime.datetime.now()
+                current_hour = now.hour
+                if 6 <= current_hour < 12:
+                    # 朝6時〜昼12時前：次は12時のリマインド
+                    await cls.wait_until(12)
+                    await cls.remind_task()
+                elif 12 <= current_hour < 18:
+                    # 昼12時〜夕方18時前：次は18時の翌日アナウンス
+                    await cls.wait_until(18)
+                    await cls.announce(is_today=0)
+                else:
+                    # 夜18時〜朝6時前：次は朝6時の当日アナウンス
+                    await cls.wait_until(6)
+                    await cls.announce(is_today=1)
+            except Exception as e:
+                await write_log_message(f"Error in check_time: {e}", "ERROR")
+                traceback.print_exc()
+                await asyncio.sleep(5)  # エラー時は5秒待機して再開
 
     @classmethod
     async def check_on_ready(cls):
@@ -102,12 +107,11 @@ class Announce:
 
 async def main():
     await Announce.check_on_ready()
-    while True:
-        try:
-            await Announce.check_time()
-        except Exception as e:
-            await write_log_message(f"{e}", "ERROR")
-            traceback.print_exc()
+    try:
+        await Announce.check_time()
+    except Exception as e:
+        await write_log_message(f"{e}", "ERROR")
+        traceback.print_exc()
 
 
 async def check_channel(ctx) -> bool:
