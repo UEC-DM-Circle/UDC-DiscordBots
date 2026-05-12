@@ -80,18 +80,21 @@ class Announce:
                 current_hour = now.hour
                 if 6 <= current_hour < 12:
                     # 朝6時〜昼12時前：次は12時のリマインド
+                    await write_log_message("Sleep until 12:00", "INFO")
                     await cls.wait_until(12)
                     await cls.remind_task()
                 elif 12 <= current_hour < 18:
                     # 昼12時〜夕方18時前：次は18時の翌日アナウンス
+                    await write_log_message("Sleep until 18:00", "INFO")
                     await cls.wait_until(18)
                     await cls.announce(is_today=0)
                 else:
                     # 夜18時〜朝6時前：次は朝6時の当日アナウンス
+                    await write_log_message("Sleep until 6:00", "INFO")
                     await cls.wait_until(6)
                     await cls.announce(is_today=1)
             except Exception as e:
-                await write_log_message(f"Error in check_time: {e}", "ERROR")
+                await write_log_message(f"{e}", "ERROR")
                 traceback.print_exc()
                 await asyncio.sleep(5)  # エラー時は5秒待機して再開
 
