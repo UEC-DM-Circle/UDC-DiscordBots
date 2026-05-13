@@ -90,7 +90,7 @@ class Announce:
                 _, target_time, next_func, next_kwargs, label = upcoming_tasks[0]
                 # 次の予定をログに出して待機
                 await write_log_message(
-                    f"Next event: {label} at {target_time.strftime('%Y-%m-%d %H:%M:%S')}",
+                    f"Next event -> {label} at {target_time.strftime('%Y-%m-%d %H:%M:%S')}",
                     "INFO",
                 )
                 # 目標時刻まで待機
