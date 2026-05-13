@@ -52,51 +52,56 @@ class Announce:
                 await alert_channel.send(message)
 
     @classmethod
-    async def wait_until(cls, target_hour: int):
+    async def wait_until_target(cls, target_time):
         while True:
             now = datetime.datetime.now()
-            # 目標時刻を「今日」に設定
-            target = now.replace(hour=target_hour, minute=0, second=0, microsecond=0)
-            # もし目標時刻が既に過ぎているなら「明日」に設定
-            if target <= now:
-                target += datetime.timedelta(days=1)
-            # 残り秒数を計算
-            diff = (target - datetime.datetime.now()).total_seconds()
-            if diff <= 0:
+            diff = (target_time - now).total_seconds()
+            if diff <= 0.1:
                 break
-            # 最大1時間待機し、再度時刻をチェック(時間の微調整)
-            wait_sec = min(diff, 3600)
-            await cls.sleep_with_log_message(math.ceil(wait_sec))
-            # 目標時刻まで残り1秒未満になったらループ終了
-            if diff <= 1:
-                break
+            # 最大1時間待機
+            wait_step = min(diff, 3600)
+            await write_log_message(
+                f"Sleeping for {math.ceil(wait_step)} seconds...", "INFO"
+            )
+            await asyncio.sleep(wait_step)
 
     @classmethod
     async def check_time(cls):
         await write_log_message("Time check loop started.", "INFO")
+
         while True:
             try:
                 now = datetime.datetime.now()
-                current_hour = now.hour
-                if 6 <= current_hour < 12:
-                    # 朝6時〜昼12時前：次は12時のリマインド
-                    await write_log_message("Sleep until 12:00", "INFO")
-                    await cls.wait_until(12)
-                    await cls.remind_task()
-                elif 12 <= current_hour < 18:
-                    # 昼12時〜夕方18時前：次は18時の翌日アナウンス
-                    await write_log_message("Sleep until 18:00", "INFO")
-                    await cls.wait_until(18)
-                    await cls.announce(is_today=0)
-                else:
-                    # 夜18時〜朝6時前：次は朝6時の当日アナウンス
-                    await write_log_message("Sleep until 6:00", "INFO")
-                    await cls.wait_until(6)
-                    await cls.announce(is_today=1)
+                # 監視したい時刻と、その時に実行する関数のリスト
+                schedules = [
+                    (6, cls.announce, {"is_today": 1}, "6:00(Today's Announce)"),
+                    (12, cls.remind_task, {}, "12:00(Reminder)"),
+                    (18, cls.announce, {"is_today": 0}, "18:00(Tomorrow's Announce)"),
+                ]
+                # 今から見て「一番近い未来」の予定を探す
+                upcoming_tasks = []
+                for hour, func, kwargs, label in schedules:
+                    target = now.replace(hour=hour, minute=0, second=0, microsecond=0)
+                    if target <= now:
+                        target += datetime.timedelta(days=1)
+                    diff = (target - now).total_seconds()
+                    upcoming_tasks.append((diff, target, func, kwargs, label))
+                # 待機時間が一番短いものを選択
+                upcoming_tasks.sort(key=lambda x: x[0])
+                _, target_time, next_func, next_kwargs, label = upcoming_tasks[0]
+                # 次の予定をログに出して待機
+                await write_log_message(
+                    f"Next event: {label} at {target_time.strftime('%Y-%m-%d %H:%M:%S')}",
+                    "INFO",
+                )
+                # 目標時刻まで待機
+                await cls.wait_until_target(target_time)
+                # 時間になったので実行！
+                await next_func(**next_kwargs)
             except Exception as e:
                 await write_log_message(f"{e}", "ERROR")
                 traceback.print_exc()
-                await asyncio.sleep(5)  # エラー時は5秒待機して再開
+                await asyncio.sleep(10)
 
     @classmethod
     async def check_on_ready(cls):
