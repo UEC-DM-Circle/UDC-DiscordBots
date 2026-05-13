@@ -68,7 +68,6 @@ class Announce:
     @classmethod
     async def check_time(cls):
         await write_log_message("Time check loop started.", "INFO")
-
         while True:
             try:
                 now = datetime.datetime.now()
