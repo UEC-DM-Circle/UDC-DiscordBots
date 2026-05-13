@@ -73,9 +73,9 @@ class Announce:
                 now = datetime.datetime.now()
                 # 監視したい時刻と、その時に実行する関数のリスト
                 schedules = [
-                    (6, cls.announce, {"is_today": 1}, "6:00(Today's Announce)"),
-                    (12, cls.remind_task, {}, "12:00(Reminder)"),
-                    (18, cls.announce, {"is_today": 0}, "18:00(Tomorrow's Announce)"),
+                    (6, cls.announce, {"is_today": 1}, "Today's Announce"),
+                    (12, cls.remind_task, {}, "Reminder"),
+                    (18, cls.announce, {"is_today": 0}, "Tomorrow's Announce"),
                 ]
                 # 今から見て「一番近い未来」の予定を探す
                 upcoming_tasks = []
