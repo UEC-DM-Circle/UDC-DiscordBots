@@ -10,3 +10,8 @@ services:
     command: ["python3", "matching.py"]
     restart: unless-stopped
     tty: true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
