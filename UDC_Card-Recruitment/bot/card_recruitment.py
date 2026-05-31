@@ -28,12 +28,10 @@ async def guide(ctx):
             "-guide\n"
             "\n"
             "【募集追加】\n"
-            "-want [カード名] [枚数]\n"
-            "-want [人] [カード名] [枚数]\n"
-            "※既存のカード名を指定した場合枚数が更新されます。\n"
-            "　人を指定しない場合は自分の名前が使用されます。\n"
+            "-want [カード名/ID] [枚数]\n"
+            "※既存のカード名またはIDを指定した場合枚数が更新されます。\n"
             "　枚数を指定しない場合は1枚として扱われます。\n"
-            "　半角スペースを含むカード名を入力しないようにしてください。\n"
+            "　カード名の末尾が空白+数字となっているもの(偽りの名 13など)の募集の際には区別のため枚数を明示してください。\n"
             "\n"
             "【募集確認】\n"
             "-check [カード名/人](個別確認)\n"
@@ -52,89 +50,75 @@ async def guide(ctx):
 @client.command()
 async def want(ctx, *, args):
     args = args.split()
-    # 追加している人が入力者本人かどうかでメッセージを変更する
+    person = ctx.author.display_name
     if await check_channel(ctx):
         arg_length = len(args)
-        if arg_length in [1, 2, 3]:
-            if arg_length == 1:
-                person = ctx.author.display_name
-                card = args[0]
-                num = "1"
-            elif arg_length == 2:
-                person = ctx.author.display_name
-                card = args[0]
-                num = args[1]
-                if not num.isdecimal():
-                    person = args[0]
-                    card = args[1]
-                    num = "1"
+        if arg_length >= 1:
+            if args[-1].isdecimal():
+                num = args[-1]
+                args = args[:-1]
             else:
-                person = args[0]
-                card = args[1]
-                num = args[2]
-            if num.isdecimal():
-                num = int(num)
-                use_id_flag = False
-                if card.isdecimal():
-                    use_id_flag = True
-                    card = int(card)
-                    recruitments = await UseMySQL.run_sql(
-                        "SELECT id, person, card, num, active FROM recruitments WHERE person = %s AND id = %s",
-                        (person, card),
-                    )
-                else:
-                    recruitments = await UseMySQL.run_sql(
-                        "SELECT id, person, card, num, active FROM recruitments WHERE person = %s AND card = %s",
-                        (person, card),
-                    )
-                if recruitments != []:
-                    id = recruitments[0][0]
-                    card_name = recruitments[0][2]
-                    current_num = recruitments[0][3]
-                    active = recruitments[0][4]
-                    if active == 1:
-                        if current_num == num:
-                            await ctx.send(
-                                f"**{person}**さんは既にその内容の募集(ID: {id})を行っています。"
-                            )
-                            return
-                        else:
-                            if use_id_flag:
-                                await UseMySQL.run_sql(
-                                    "UPDATE recruitments SET num = %s WHERE person = %s AND id = %s",
-                                    (num, person, card),
-                                )
-                            else:
-                                await UseMySQL.run_sql(
-                                    "UPDATE recruitments SET num = %s WHERE person = %s AND card = %s",
-                                    (num, person, card),
-                                )
-                            await ctx.send(
-                                f"**{person}**さんの『{card_name}』の募集枚数を更新しました：\n×{current_num} → ×{num}"
-                            )
-                            return
-                    else:
-                        await UseMySQL.run_sql(
-                            "UPDATE recruitments SET active = 1, num = %s WHERE person = %s AND card = %s",
-                            (num, person, card),
-                        )
+                num = "1"
+            card = " ".join(args)
+            num = int(num)
+            use_id_flag = False
+            if card.isdecimal():
+                use_id_flag = True
+                card = int(card)
+                recruitments = await UseMySQL.run_sql(
+                    "SELECT id, person, card, num, active FROM recruitments WHERE person = %s AND id = %s",
+                    (person, card),
+                )
+            else:
+                recruitments = await UseMySQL.run_sql(
+                    "SELECT id, person, card, num, active FROM recruitments WHERE person = %s AND card = %s",
+                    (person, card),
+                )
+            if recruitments != []:
+                id = recruitments[0][0]
+                card_name = recruitments[0][2]
+                current_num = recruitments[0][3]
+                active = recruitments[0][4]
+                if active == 1:
+                    if current_num == num:
                         await ctx.send(
-                            f"**{person}**さんの募集を受け付けました：\n{card} ×{num}"
+                            f"**{person}**さんは既にその内容の募集(ID: {id})を行っています。"
+                        )
+                        return
+                    else:
+                        if use_id_flag:
+                            await UseMySQL.run_sql(
+                                "UPDATE recruitments SET num = %s WHERE person = %s AND id = %s",
+                                (num, person, card),
+                            )
+                        else:
+                            await UseMySQL.run_sql(
+                                "UPDATE recruitments SET num = %s WHERE person = %s AND card = %s",
+                                (num, person, card),
+                            )
+                        await ctx.send(
+                            f"**{person}**さんの『{card_name}』の募集枚数を更新しました：\n×{current_num} → ×{num}"
                         )
                         return
                 else:
-                    # 新規追加
                     await UseMySQL.run_sql(
-                        "INSERT INTO recruitments (person, card, num) VALUES (%s, %s, %s)",
-                        (person, card, num),
+                        "UPDATE recruitments SET active = 1, num = %s WHERE person = %s AND card = %s",
+                        (num, person, card),
                     )
                     await ctx.send(
-                        f"**{person}**さんの募集を受け付けました：\n{card} ×{num}"
+                        f"**{person}**さんの募集を受け付けました：\n『{card}』×{num}"
                     )
                     return
             else:
-                await ctx.send("枚数の指定に誤りがあります。")
-            return
+                # 新規追加
+                await UseMySQL.run_sql(
+                    "INSERT INTO recruitments (person, card, num) VALUES (%s, %s, %s)",
+                    (person, card, num),
+                )
+                await ctx.send(
+                    f"**{person}**さんの募集を受け付けました：\n『{card}』×{num}"
+                )
+                return
         await ctx.send("募集追加方法に誤りがあります。")
 
 
