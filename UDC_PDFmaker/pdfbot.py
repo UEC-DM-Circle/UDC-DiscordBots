@@ -10,7 +10,7 @@ def legal_url(url: str) -> bool:
     return bool(re.match(pattern, url))
 
 
-def get_udc_member_id(user: str) -> str:
+def retrieve_udc_member_id(user: str) -> str:
     udc_member_id = UseMySQL.run_sql(
         "SELECT id FROM udc_members WHERE name = %s", (user,)
     )
@@ -24,7 +24,7 @@ def get_udc_member_id(user: str) -> str:
 
 
 def register_to_database(user: str, option: str, url: str):
-    udc_member_id = get_udc_member_id(user)
+    udc_member_id = retrieve_udc_member_id(user)
     if udc_member_id is not None:
         UseMySQL.run_sql(
             "INSERT INTO pdf_requests (udc_member_id, options, url) VALUES (%s, %s, %s)",
