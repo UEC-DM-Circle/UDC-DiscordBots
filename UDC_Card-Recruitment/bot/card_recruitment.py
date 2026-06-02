@@ -80,20 +80,20 @@ async def want(ctx, *, args):
                 use_id_flag = True
                 card = int(card)
                 recruitments = await UseMySQL.run_sql(
-                    "SELECT id, udc_member_id, card, num, active FROM recruitments WHERE udc_member_id = %s AND id = %s",
+                    "SELECT id, udc_member_id, card, num, is_active FROM recruitments WHERE udc_member_id = %s AND id = %s",
                     (udc_member_id, card),
                 )
             else:
                 recruitments = await UseMySQL.run_sql(
-                    "SELECT id, udc_member_id, card, num, active FROM recruitments WHERE udc_member_id = %s AND card = %s",
+                    "SELECT id, udc_member_id, card, num, is_active FROM recruitments WHERE udc_member_id = %s AND card = %s",
                     (udc_member_id, card),
                 )
             if recruitments != []:
                 id = recruitments[0][0]
                 card_name = recruitments[0][2]
                 current_num = recruitments[0][3]
-                active = recruitments[0][4]
-                if active == 1:
+                is_active = recruitments[0][4]
+                if is_active == 1:
                     if current_num == num:
                         await ctx.send(
                             f"**{name}**さんは既にその内容の募集(ID: {id})を行っています。"
@@ -116,7 +116,7 @@ async def want(ctx, *, args):
                         return
                 else:
                     await UseMySQL.run_sql(
-                        "UPDATE recruitments SET active = 1, num = %s WHERE udc_member_id = %s AND card = %s",
+                        "UPDATE recruitments SET is_active = 1, num = %s WHERE udc_member_id = %s AND card = %s",
                         (num, udc_member_id, card),
                     )
                     await ctx.send(
@@ -140,7 +140,7 @@ async def want(ctx, *, args):
 async def check(ctx, *args):
     if await check_channel(ctx):
         recruitments = await UseMySQL.run_sql(
-            "SELECT r.id, name, card, num FROM recruitments r JOIN udc_members um ON um.id = r.udc_member_id WHERE active = 1",
+            "SELECT r.id, name, card, num FROM recruitments r JOIN udc_members um ON um.id = r.udc_member_id WHERE is_active = 1",
             (),
         )
         if recruitments == []:
@@ -213,7 +213,7 @@ async def end(ctx, *, args):
         arg_length = len(args)
         if arg_length > 0:
             people = await UseMySQL.run_sql(
-                "SELECT DISTINCT name FROM recruitments r JOIN udc_members um ON um.id = r.udc_member_id WHERE active = 1",
+                "SELECT DISTINCT name FROM recruitments r JOIN udc_members um ON um.id = r.udc_member_id WHERE is_active = 1",
                 (),
             )
             people = sorted([name[0] for name in people])
@@ -224,7 +224,7 @@ async def end(ctx, *, args):
                         name = ctx.author.display_name
                         udc_member_id = await retrieve_udc_member_id(name)
                         reqruitment = await UseMySQL.run_sql(
-                            "SELECT id, card FROM recruitments WHERE active = 1 AND id = %s AND udc_member_id = %s",
+                            "SELECT id, card FROM recruitments WHERE is_active = 1 AND id = %s AND udc_member_id = %s",
                             (key, udc_member_id),
                         )
                         if reqruitment == []:
@@ -242,7 +242,7 @@ async def end(ctx, *, args):
                 name = ctx.author.display_name
             udc_member_id = await retrieve_udc_member_id(name)
             recruitments = await UseMySQL.run_sql(
-                "SELECT id FROM recruitments WHERE udc_member_id = %s AND active = 1",
+                "SELECT id FROM recruitments WHERE udc_member_id = %s AND is_active = 1",
                 (udc_member_id,),
             )
             if recruitments == []:
@@ -256,7 +256,7 @@ async def end(ctx, *, args):
             for arg in args:
                 key = int(arg)
                 recruitment = await UseMySQL.run_sql(
-                    "SELECT id, card FROM recruitments WHERE udc_member_id = %s AND id = %s AND active = 1",
+                    "SELECT id, card FROM recruitments WHERE udc_member_id = %s AND id = %s AND is_active = 1",
                     (udc_member_id, key),
                 )
                 if not recruitment:
@@ -264,7 +264,7 @@ async def end(ctx, *, args):
                     continue
                 card_name = recruitment[0][1]
                 await UseMySQL.run_sql(
-                    "UPDATE recruitments SET active = 0 WHERE id = %s",
+                    "UPDATE recruitments SET is_active = 0 WHERE id = %s",
                     (key,),
                 )
                 ended_recruitments.append((key, card_name))
