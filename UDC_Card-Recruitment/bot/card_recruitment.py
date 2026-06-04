@@ -111,7 +111,7 @@ async def want(ctx, *, args):
                                 (num, udc_member_id, card),
                             )
                         await ctx.send(
-                            f"**{name}**さんの『{card_name}』の募集枚数を更新しました：\n×{current_num} → ×{num}"
+                            f"**{name}**さんの『{card_name}』(ID: {id})の募集枚数を更新しました：\n×{current_num} → ×{num}"
                         )
                         return
                 else:
@@ -120,7 +120,7 @@ async def want(ctx, *, args):
                         (num, udc_member_id, card),
                     )
                     await ctx.send(
-                        f"**{name}**さんの募集を受け付けました：\n『{card}』×{num}"
+                        f"**{name}**さんの募集を受け付けました：\n『{card}』×{num} (ID: {id})"
                     )
                     return
             else:
@@ -129,8 +129,13 @@ async def want(ctx, *, args):
                     "INSERT INTO recruitments (udc_member_id, card, num) VALUES (%s, %s, %s)",
                     (udc_member_id, card, num),
                 )
+                id = await UseMySQL.run_sql(
+                    "SELECT id FROM recruitments WHERE udc_member_id = %s AND card = %s",
+                    (udc_member_id, card),
+                )
+                id = id[0][0]
                 await ctx.send(
-                    f"**{name}**さんの募集を受け付けました：\n『{card}』×{num}"
+                    f"**{name}**さんの募集を受け付けました：\n『{card}』×{num} (ID: {id})"
                 )
                 return
         await ctx.send("募集追加方法に誤りがあります。")
