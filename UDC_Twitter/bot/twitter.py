@@ -68,4 +68,4 @@ async def on_ready():
         task = asyncio.create_task(main())
 
 
-client.run(TOKEN)
+client.run(TOKEN, log_handler=None)

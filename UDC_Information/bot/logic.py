@@ -44,6 +44,9 @@ class Logic:
                 # https://supersolenoid.jp/blog-entry-42860.html
                 # https://supersolenoid.jp/blog-entry-42944.html
                 return "hatti_cs_result"
+            if "流星CS" in title:
+                # https://supersolenoid.jp/blog-entry-46417.html
+                return "ryusei_cs_result"
             if "DMGP" in title:
                 # https://supersolenoid.jp/blog-entry-42560.html
                 return "gp_result"
@@ -59,8 +62,11 @@ class Logic:
             # https://supersolenoid.jp/blog-entry-45795.html
             return "stream"
         if "金トレジャー" in title:
+            # https://supersolenoid.jp/blog-entry-46329.html
+            # ↑との間違いに注意
             # https://supersolenoid.jp/blog-entry-45189.html
-            return "gold_treasure"
+            if "収録カードまとめ" not in title:
+                return "gold_treasure"
         return "etc"
 
     @staticmethod

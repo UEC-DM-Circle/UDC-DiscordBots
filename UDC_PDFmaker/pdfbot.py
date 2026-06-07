@@ -10,11 +10,27 @@ def legal_url(url: str) -> bool:
     return bool(re.match(pattern, url))
 
 
-def register_to_database(user: str, option: str, url: str):
-    UseMySQL.run_sql(
-        "INSERT INTO pdf_requests (user, options, url) VALUES (%s, %s, %s)",
-        (user, option, url),
+def retrieve_udc_member_id(user: str) -> str:
+    udc_member_id = UseMySQL.run_sql(
+        "SELECT id FROM udc_members WHERE name = %s", (user,)
     )
+    if udc_member_id == []:
+        # 新規登録
+        UseMySQL.run_sql("INSERT INTO udc_members (name) VALUES (%s)", (user,))
+        udc_member_id = UseMySQL.run_sql(
+            "SELECT id FROM udc_members WHERE name = %s", (user,)
+        )
+    return udc_member_id[0][0]
+
+
+def register_to_database(user: str, option: str, url: str):
+    udc_member_id = retrieve_udc_member_id(user)
+    if udc_member_id is not None:
+        UseMySQL.run_sql(
+            "INSERT INTO pdf_requests (udc_member_id, options, url) VALUES (%s, %s, %s)",
+            (udc_member_id, option, url),
+        )
+        return
 
 
 @client.event
@@ -56,11 +72,11 @@ async def pdfmake(ctx, *args):
         await ctx.send(file=discord.File(fp=pdf_binary, filename=PDF_NAME))
         await ctx.send(f"{ctx.author.mention} PDFの生成が完了しました。")
     except PDFmakerError as e:
-        await write_log_message(str(e), "ERROR")
-        await ctx.send(str(e))
+        await write_log_message(f"{e}", "ERROR")
+        await ctx.send(f"{e}")
     except Exception as e:
-        await write_log_message(str(e), "UNEXPECTED_ERROR")
+        await write_log_message(f"{e}", "FATAL")
         await ctx.send("予期せぬエラーが発生しました。管理者に連絡してください。")
 
 
-client.run(TOKEN)
+client.run(TOKEN, log_handler=None)

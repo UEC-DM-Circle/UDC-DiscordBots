@@ -25,6 +25,19 @@ class Crawler:
         )
 
     @staticmethod
+    async def register_api_status_code(status_code: int, method: str):
+        latest_crawl_id = await UseMySQL.run_sql(
+            "SELECT id FROM crawls WHERE method = %s AND service = %s ORDER BY created_at DESC LIMIT 1",
+            (method, SERVICE_NAME),
+        )
+        if not latest_crawl_id:
+            return
+        await UseMySQL.run_sql(
+            "INSERT INTO api_status_codes (crawl_id, status_code) VALUES (%s, %s)",
+            (latest_crawl_id[0], status_code),
+        )
+
+    @staticmethod
     async def check_latest_api_crawl_time() -> bool:
         result = await UseMySQL.run_sql(
             "SELECT created_at FROM crawls WHERE method = %s AND service = %s ORDER BY created_at DESC LIMIT 1",
@@ -51,6 +64,7 @@ class Crawler:
             await asyncio.sleep(1)
             response = await cls.session.get(target_url, headers=headers, params=params)
             await cls.register_crawl(target_url, "X_API")
+            await cls.register_api_status_code(response.status, "X_API")
             if response.status == 200:
                 return (await response.json()).get("data", [])
             elif response.status == 429:
