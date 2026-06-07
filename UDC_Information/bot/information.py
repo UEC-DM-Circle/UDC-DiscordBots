@@ -12,8 +12,9 @@ task = None
 
 class Information:
     # 各々切り分けてね
+    # 画像が送信済みかの判定：重いので直近1カ月以内のものに重複があるかをチェック
     @staticmethod
-    async def decide_parser(new_article: dict):
+    async def decide_process_method(new_article: dict):
         url = new_article["url"]
         title = new_article["title"]
         category = new_article["category"]
@@ -34,13 +35,13 @@ class Information:
                     for tweet_url, tweet_text in zip(
                         cs_result["result_tweets"], cs_result["tweet_texts"]
                     ):
+                        tweet_id = tweet_url.split("/")[-1]
                         await UseMySQL.run_sql(
-                            "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
+                            "INSERT INTO tweets (text, tweet_id, url) VALUES (%s, %s, %s)",
                             (
-                                tweet_url,
                                 tweet_text,
-                                category,
-                                SERVICE_NAME,
+                                tweet_id,
+                                tweet_url,
                             ),
                         )
                         await Information.send_message(
@@ -187,10 +188,10 @@ async def main():
             # 田園補完計画→デネブログの順
             denen_new_articles = await Crawler.get_new_denen_articles()
             for denen_new_article in denen_new_articles:
-                await Information.decide_parser(denen_new_article)
+                await Information.decide_process_method(denen_new_article)
             deneblog_new_articles = await Crawler.get_new_deneblog_articles()
             for deneblog_new_article in deneblog_new_articles:
-                await Information.decide_parser(deneblog_new_article)
+                await Information.decide_process_method(deneblog_new_article)
         except Exception as e:
             await write_log_message(f"{e}", "ERROR")
             traceback.print_exc()

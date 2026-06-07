@@ -66,7 +66,9 @@ class Parser:
                     a_tag.get("href").split("?")[0]
                     for a_tag in a_tags
                     if a_tag.get("href") is not None
+                    and "status" in a_tag.get("href")
                     and not a_tag.get("href").startswith("https://twitter.com/hashtag/")
+                    and not a_tag.get("href").startswith("https://x.com/hashtag/")
                     and not a_tag.get("href").startswith("https://t.co/")
                 ]
                 tweet_texts = overview_or_embed_tweet.find_all("p")
