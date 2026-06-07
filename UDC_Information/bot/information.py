@@ -35,13 +35,13 @@ class Information:
                     for tweet_url, tweet_text in zip(
                         cs_result["result_tweets"], cs_result["tweet_texts"]
                     ):
+                        tweet_id = tweet_url.split("/")[-1]
                         await UseMySQL.run_sql(
-                            "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
+                            "INSERT INTO tweets (text, tweet_id, url) VALUES (%s, %s, %s)",
                             (
-                                tweet_url,
                                 tweet_text,
-                                category,
-                                SERVICE_NAME,
+                                tweet_id,
+                                tweet_url,
                             ),
                         )
                         await Information.send_message(
