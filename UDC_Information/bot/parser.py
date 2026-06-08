@@ -88,7 +88,7 @@ class Parser:
         # 中身を見て、大会情報を抜き出す！
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
-            return
+            return []
         await Crawler.register_crawl(url, "HTTP_GET")
         return await Parser.parse_soup_of_many_cs_results(soup)
 
@@ -297,7 +297,7 @@ class Parser:
         category = new_article["category"]
         # パースは一回でOK
         if await Logic.judge_iscrawled(url, category):
-            return "", []
+            return []
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
             return []
@@ -339,7 +339,7 @@ class Parser:
             )
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
-            return
+            return []
         await Crawler.register_crawl(url, "HTTP_GET")
         streamed_imgs = soup.find("div", class_="EntryMore").find_all("img")
         streamed_images = [

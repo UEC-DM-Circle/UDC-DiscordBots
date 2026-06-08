@@ -117,7 +117,7 @@ class Information:
                 await Information.send_new_info_images(newcard_images, url, category)
             case "stream":
                 streamed_images = await Parser.parse_stream(new_article)
-                if streamed_images == []:
+                if not streamed_images:
                     return
                 await Information.send_new_info_images(streamed_images, url, category)
                 return
