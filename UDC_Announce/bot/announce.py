@@ -166,16 +166,24 @@ async def check(ctx):
             "SELECT id, title, date, place, comment, is_today FROM announcements WHERE is_announced = 0 ORDER BY date ASC, is_today DESC"
         )
         if unsend_announcements:
-            message = "**送信予定アナウンス一覧**\n\n"
+            messages_to_send = []
+            current_message = "**送信予定アナウンス一覧**\n\n"
             for unsend_announcement in unsend_announcements:
                 id, title, date, place, comment, is_today = unsend_announcement
                 today_or_tomorrow = "当日告知" if is_today else "前日告知"
-                message += f"ID：{id}\nタイトル：{title}\n日付：{date}({today_or_tomorrow})\n場所：{place}\n"
+                block = f"ID：{id}\nタイトル：{title}\n日付：{date}({today_or_tomorrow})\n場所：{place}\n"
                 if comment:
-                    message += f"コメント：{comment}\n"
-                message += "\n"
-            message = message.strip()
-            await ctx.send(message)
+                    block += f"コメント：{comment}\n"
+                block += "\n"
+                if len(current_message) + len(block) > 1950:
+                    messages_to_send.append(current_message.strip())
+                    current_message = block
+                else:
+                    current_message += block
+            if current_message.strip():
+                messages_to_send.append(current_message.strip())
+            for msg in messages_to_send:
+                await ctx.send(msg)
         else:
             await ctx.send(
                 "送信予定のアナウンスがありません。\n新規追加をお願いします！"
