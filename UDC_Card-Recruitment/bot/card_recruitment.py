@@ -142,6 +142,7 @@ async def want(ctx, *, args):
 
 
 @client.command()
+# refactor: 長すぎるメッセージの場合、1950字で分割する
 async def check(ctx, *args):
     if await check_channel(ctx):
         recruitments = await UseMySQL.run_sql(
