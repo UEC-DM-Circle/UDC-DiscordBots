@@ -105,6 +105,15 @@ class Information:
                 newcard_images = await Parser.parse_new_card(new_article)
                 if not newcard_images:
                     return
+                await UseMySQL.run_sql(
+                    "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
+                    (
+                        url,
+                        title,
+                        category,
+                        SERVICE_NAME,
+                    ),
+                )
                 await Information.send_new_info_images(newcard_images, url, category)
             case "stream":
                 streamed_images = await Parser.parse_stream(new_article)
