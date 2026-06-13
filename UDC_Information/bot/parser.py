@@ -369,9 +369,18 @@ class Parser:
     async def parse_new_card(new_article: dict):
         url = new_article["url"]
         category = new_article["category"]
-        # パースは一回でOK
-        if await Logic.judge_iscrawled(url, category):
-            return []
+        title = new_article["title"]
+        # 1回だけ追加する
+        if not await Logic.judge_iscrawled(url, category):
+            await UseMySQL.run_sql(
+                "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
+                (
+                    url,
+                    title,
+                    category,
+                    SERVICE_NAME,
+                ),
+            )
         return await Parser.parse_deneblog_images(url)
 
     # async def parse_stream(new_article: dict):
