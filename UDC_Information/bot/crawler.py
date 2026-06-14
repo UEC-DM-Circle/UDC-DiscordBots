@@ -72,10 +72,23 @@ class Crawler:
         return "FAILED"
 
     @staticmethod
-    async def register_crawl(target_url: str, method: str):
+    async def retrive_id(table_name: str, key: str):
+        id = await UseMySQL.run_sql(
+            "SELECT id FROM {} WHERE name = %s".format(table_name), (key,)
+        )
+        if not id:
+            return None
+        return id[0]
+
+    @classmethod
+    async def register_crawl(cls, target_url: str, crawl_method: str):
+        crawl_method_id = await cls.retrive_id("crawl_methods", crawl_method)
+        service_id = await cls.retrive_id("services", SERVICE_NAME)
+        if crawl_method_id is None or service_id is None:
+            return
         await UseMySQL.run_sql(
-            "INSERT INTO crawls (target_url, method, service) VALUES (%s, %s, %s)",
-            (target_url, method, SERVICE_NAME),
+            "INSERT INTO crawls (target_url, crawl_method_id, service_id) VALUES (%s, %s, %s)",
+            (target_url, crawl_method_id, service_id),
         )
 
     @classmethod

@@ -18,6 +18,10 @@ class Information:
         url = new_article["url"]
         title = new_article["title"]
         category = new_article["category"]
+        service_id = await Crawler.retrive_id("services", SERVICE_NAME)
+        category_id = await Crawler.retrive_id("categories", category, service_id)
+        if service_id is None or category_id is None:
+            return
         match category:
             case "ranking":
                 ranking_img = await Parser.parse_ranking(new_article)
@@ -48,16 +52,16 @@ class Information:
                             DISCORD_RESULT_CHANNEL_ID, tweet_url
                         )
                 await UseMySQL.run_sql(
-                    "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-                    (url, title, category, SERVICE_NAME),
+                    "INSERT INTO sent_urls (url, title, category_id, service_id) VALUES (%s, %s, %s, %s)",
+                    (url, title, category_id, service_id),
                 )
             case "hatti_cs_result":
                 message, result_images = await Parser.parse_hatti_cs_result(new_article)
                 if not message or not result_images:
                     return
                 await UseMySQL.run_sql(
-                    "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-                    (url, title, category, SERVICE_NAME),
+                    "INSERT INTO sent_urls (url, title, category_id, service_id) VALUES (%s, %s, %s, %s)",
+                    (url, title, category_id, service_id),
                 )
                 await Information.send_message(DISCORD_RESULT_CHANNEL_ID, message)
                 await Information.send_result_images(result_images, url, category)
@@ -68,8 +72,8 @@ class Information:
                 if not message or not result_images:
                     return
                 await UseMySQL.run_sql(
-                    "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-                    (url, title, category, SERVICE_NAME),
+                    "INSERT INTO sent_urls (url, title, category_id, service_id) VALUES (%s, %s, %s, %s)",
+                    (url, title, category_id, service_id),
                 )
                 await Information.send_message(DISCORD_RESULT_CHANNEL_ID, message)
                 await Information.send_result_images(result_images, url, category)
@@ -81,8 +85,8 @@ class Information:
                 if not await Logic.judge_iscrawled(url, category):
                     await Information.send_message(DISCORD_RESULT_CHANNEL_ID, message)
                     await UseMySQL.run_sql(
-                        "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-                        (url, title, category, SERVICE_NAME),
+                        "INSERT INTO sent_urls (url, title, category_id, service_id) VALUES (%s, %s, %s, %s)",
+                        (url, title, category_id, service_id),
                     )
                 # 後から画像が追加されることもある
                 await Information.send_result_images(result_images, url, category)
@@ -91,8 +95,8 @@ class Information:
                 if not message or not result_images:
                     return
                 await UseMySQL.run_sql(
-                    "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-                    (url, title, category, SERVICE_NAME),
+                    "INSERT INTO sent_urls (url, title, category_id, service_id) VALUES (%s, %s, %s, %s)",
+                    (url, title, category_id, service_id),
                 )
                 await Information.send_message(DISCORD_RESULT_CHANNEL_ID, message)
                 await Information.send_result_images(result_images, url, category)
@@ -106,13 +110,8 @@ class Information:
                 if not newcard_images:
                     return
                 await UseMySQL.run_sql(
-                    "INSERT INTO sent_urls (url, title, category, service) VALUES (%s, %s, %s, %s)",
-                    (
-                        url,
-                        title,
-                        category,
-                        SERVICE_NAME,
-                    ),
+                    "INSERT INTO sent_urls (url, title, category_id, service_id) VALUES (%s, %s, %s, %s)",
+                    (url, title, category_id, service_id),
                 )
                 await Information.send_new_info_images(newcard_images, url, category)
             case "stream":
@@ -126,6 +125,10 @@ class Information:
 
     @staticmethod
     async def send_result_images(result_images: list, url: str, category: str):
+        service_id = await Crawler.retrive_id("services", SERVICE_NAME)
+        category_id = await Crawler.retrive_id("categories", category, service_id)
+        if service_id is None or category_id is None:
+            return
         for result_image in result_images:
             if not await Logic.judge_isimage(result_image):
                 continue
@@ -133,13 +136,20 @@ class Information:
                 continue
             deck_image_size = await Crawler.try_to_get_image_size(result_image)
             await Crawler.register_crawl(result_image, "HTTP_GET")
+            original_url_id = await UseMySQL.run_sql(
+                "SELECT id FROM sent_urls WHERE url = %s AND category_id = %s AND service_id = %s ORDER BY id DESC LIMIT 1",
+                (url, category_id, service_id),
+            )
+            if original_url_id == []:
+                return
+            original_url_id = original_url_id[0]
             await UseMySQL.run_sql(
-                "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
+                "INSERT INTO sent_images (url, original_url_id, category_id, service_id, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
                 (
                     result_image,
-                    url,
-                    category,
-                    SERVICE_NAME,
+                    original_url_id,
+                    category_id,
+                    service_id,
                     deck_image_size[0],
                     deck_image_size[1],
                 ),
@@ -149,6 +159,10 @@ class Information:
 
     @staticmethod
     async def send_new_info_images(new_info_images: list, url: str, category: str):
+        service_id = await Crawler.retrive_id("services", SERVICE_NAME)
+        category_id = await Crawler.retrive_id("categories", category, service_id)
+        if service_id is None or category_id is None:
+            return
         for new_info_image in new_info_images:
             if not await Logic.judge_isimage(new_info_image):
                 continue
@@ -162,13 +176,20 @@ class Information:
                 # 正方形画像は広告
                 continue
             await Crawler.register_crawl(new_info_image, "HTTP_GET")
+            original_url_id = await UseMySQL.run_sql(
+                "SELECT id FROM sent_urls WHERE url = %s AND category_id = %s AND service_id = %s ORDER BY id DESC LIMIT 1",
+                (url, category_id, service_id),
+            )
+            if original_url_id == []:
+                return
+            original_url_id = original_url_id[0]
             await UseMySQL.run_sql(
-                "INSERT INTO sent_images (url, original_url, category, service, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
+                "INSERT INTO sent_images (url, original_url_id, category_id, service_id, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
                 (
                     new_info_image,
-                    url,
-                    category,
-                    SERVICE_NAME,
+                    original_url_id,
+                    category_id,
+                    service_id,
                     newcard_image_size[0],
                     newcard_image_size[1],
                 ),
