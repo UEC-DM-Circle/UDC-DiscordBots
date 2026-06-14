@@ -17,6 +17,15 @@ class Crawler:
             await cls.session.close()
             cls.session = None
 
+    @staticmethod
+    async def retrive_id(table_name: str, key: str):
+        id = await UseMySQL.run_sql(
+            "SELECT id FROM {} WHERE name = %s".format(table_name), (key,)
+        )
+        if not id:
+            return None
+        return id[0]
+
     @classmethod
     async def register_crawl(cls, target_url: str, crawl_method: str):
         crawl_method_id = await cls.retrive_id("crawl_methods", crawl_method)
@@ -45,10 +54,10 @@ class Crawler:
             (latest_crawl_id[0], status_code),
         )
 
-    @staticmethod
-    async def check_latest_api_crawl_time() -> bool:
-        crawl_method_id = await Crawler.retrive_id("crawl_methods", "X_API")
-        service_id = await Crawler.retrive_id("services", SERVICE_NAME)
+    @classmethod
+    async def check_latest_api_crawl_time(cls) -> bool:
+        crawl_method_id = await cls.retrive_id("crawl_methods", "X_API")
+        service_id = await cls.retrive_id("services", SERVICE_NAME)
         if crawl_method_id is None or service_id is None:
             return
         result = await UseMySQL.run_sql(
