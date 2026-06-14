@@ -79,27 +79,44 @@ def crop_img(image: bytes) -> ImageReader:  # 引数は画像のバイトデー�
     return compress_image(pil_img)
 
 
-def register_crawl(target_url: str, method: str):
+def retrive_id(table_name: str, key: str):
+    id = UseMySQL.run_sql(
+        "SELECT id FROM {} WHERE name = %s".format(table_name), (key,)
+    )
+    if not id:
+        return None
+    return id[0]
+
+
+def register_crawl(target_url: str, crawl_method: str):
+    crawl_method_id = retrive_id("crawl_methods", crawl_method)
+    service_id = retrive_id("services", SERVICE_NAME)
+    if crawl_method_id is None or service_id is None:
+        return
     UseMySQL.run_sql(
-        "INSERT INTO crawls (target_url, method, service) VALUES (%s, %s, %s)",
+        "INSERT INTO crawls (target_url, crawl_method_id, service_id) VALUES (%s, %s, %s)",
         (
             target_url,
-            method,
-            SERVICE_NAME,
+            crawl_method_id,
+            service_id,
         ),
     )
 
 
-def register_api_status_code(status_code: int, method: str):
+def register_api_status_code(cls, status_code: int, crawl_method: str):
+    crawl_method_id = retrive_id("crawl_methods", crawl_method)
+    service_id = retrive_id("services", SERVICE_NAME)
+    if crawl_method_id is None or service_id is None:
+        return
     latest_crawl_id = UseMySQL.run_sql(
-        "SELECT id FROM crawls WHERE method = %s AND service = %s ORDER BY created_at DESC LIMIT 1",
-        (method, SERVICE_NAME),
+        "SELECT id FROM crawls WHERE crawl_method_id = %s AND service_id = %s ORDER BY created_at DESC LIMIT 1",
+        (crawl_method_id, service_id),
     )
     if not latest_crawl_id:
         return
     UseMySQL.run_sql(
         "INSERT INTO api_status_codes (crawl_id, status_code) VALUES (%s, %s)",
-        (latest_crawl_id[0][0], status_code),
+        (latest_crawl_id[0], status_code),
     )
 
 
