@@ -12,7 +12,7 @@ class Parser:
         title = new_article["title"]
         category = new_article["category"]
         service_id = await Crawler.retrive_id("services", SERVICE_NAME)
-        category_id = await Crawler.retrive_id("categories", category, service_id)
+        category_id = await Crawler.retrive_id("categories", category)
         if service_id is None or category_id is None:
             return
         # パースは一回でOK
@@ -309,7 +309,7 @@ class Parser:
         title = new_article["title"]
         category = new_article["category"]
         service_id = await Crawler.retrive_id("services", SERVICE_NAME)
-        category_id = await Crawler.retrive_id("categories", category, service_id)
+        category_id = await Crawler.retrive_id("categories", category)
         if service_id is None or category_id is None:
             return []
         # パースは一回でOK
@@ -345,7 +345,7 @@ class Parser:
         title = new_article["title"]
         category = new_article["category"]
         service_id = await Crawler.retrive_id("services", SERVICE_NAME)
-        category_id = await Crawler.retrive_id("categories", category, service_id)
+        category_id = await Crawler.retrive_id("categories", category)
         if service_id is None or category_id is None:
             return []
         # 1回だけ追加する

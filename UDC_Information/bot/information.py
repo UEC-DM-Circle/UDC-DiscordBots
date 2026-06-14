@@ -19,7 +19,7 @@ class Information:
         title = new_article["title"]
         category = new_article["category"]
         service_id = await Crawler.retrive_id("services", SERVICE_NAME)
-        category_id = await Crawler.retrive_id("categories", category, service_id)
+        category_id = await Crawler.retrive_id("categories", category)
         if service_id is None or category_id is None:
             return
         match category:
@@ -126,7 +126,7 @@ class Information:
     @staticmethod
     async def send_result_images(result_images: list, url: str, category: str):
         service_id = await Crawler.retrive_id("services", SERVICE_NAME)
-        category_id = await Crawler.retrive_id("categories", category, service_id)
+        category_id = await Crawler.retrive_id("categories", category)
         if service_id is None or category_id is None:
             return
         for result_image in result_images:
@@ -160,7 +160,7 @@ class Information:
     @staticmethod
     async def send_new_info_images(new_info_images: list, url: str, category: str):
         service_id = await Crawler.retrive_id("services", SERVICE_NAME)
-        category_id = await Crawler.retrive_id("categories", category, service_id)
+        category_id = await Crawler.retrive_id("categories", category)
         if service_id is None or category_id is None:
             return
         for new_info_image in new_info_images:
