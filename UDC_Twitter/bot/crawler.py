@@ -17,18 +17,26 @@ class Crawler:
             await cls.session.close()
             cls.session = None
 
-    @staticmethod
-    async def register_crawl(target_url: str, method: str):
+    @classmethod
+    async def register_crawl(cls, target_url: str, crawl_method: str):
+        crawl_method_id = await cls.retrive_id("crawl_methods", crawl_method)
+        service_id = await cls.retrive_id("services", SERVICE_NAME)
+        if crawl_method_id is None or service_id is None:
+            return
         await UseMySQL.run_sql(
-            "INSERT INTO crawls (target_url, method, service) VALUES (%s, %s, %s)",
-            (target_url, method, SERVICE_NAME),
+            "INSERT INTO crawls (target_url, crawl_method_id, service_id) VALUES (%s, %s, %s)",
+            (target_url, crawl_method_id, service_id),
         )
 
-    @staticmethod
-    async def register_api_status_code(status_code: int, method: str):
+    @classmethod
+    async def register_api_status_code(cls, status_code: int, crawl_method: str):
+        crawl_method_id = await cls.retrive_id("crawl_methods", crawl_method)
+        service_id = await cls.retrive_id("services", SERVICE_NAME)
+        if crawl_method_id is None or service_id is None:
+            return
         latest_crawl_id = await UseMySQL.run_sql(
-            "SELECT id FROM crawls WHERE method = %s AND service = %s ORDER BY created_at DESC LIMIT 1",
-            (method, SERVICE_NAME),
+            "SELECT id FROM crawls WHERE crawl_method_id = %s AND service_id = %s ORDER BY created_at DESC LIMIT 1",
+            (crawl_method_id, service_id),
         )
         if not latest_crawl_id:
             return
@@ -39,9 +47,13 @@ class Crawler:
 
     @staticmethod
     async def check_latest_api_crawl_time() -> bool:
+        crawl_method_id = await Crawler.retrive_id("crawl_methods", "X_API")
+        service_id = await Crawler.retrive_id("services", SERVICE_NAME)
+        if crawl_method_id is None or service_id is None:
+            return
         result = await UseMySQL.run_sql(
-            "SELECT created_at FROM crawls WHERE method = %s AND service = %s ORDER BY created_at DESC LIMIT 1",
-            ("X_API", SERVICE_NAME),
+            "SELECT created_at FROM crawls WHERE crawl_method_id = %s AND service_id = %s ORDER BY created_at DESC LIMIT 1",
+            (crawl_method_id, service_id),
         )
         # 初回クロールの場合はTrueを返す
         if not result:
