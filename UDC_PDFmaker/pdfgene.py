@@ -85,7 +85,7 @@ def retrive_id(table_name: str, key: str):
     )
     if not id:
         return None
-    return id[0]
+    return id[0][0]
 
 
 def register_crawl(target_url: str, crawl_method: str):
@@ -103,7 +103,7 @@ def register_crawl(target_url: str, crawl_method: str):
     )
 
 
-def register_api_status_code(cls, status_code: int, crawl_method: str):
+def register_api_status_code(status_code: int, crawl_method: str):
     crawl_method_id = retrive_id("crawl_methods", crawl_method)
     service_id = retrive_id("services", SERVICE_NAME)
     if crawl_method_id is None or service_id is None:
@@ -116,7 +116,7 @@ def register_api_status_code(cls, status_code: int, crawl_method: str):
         return
     UseMySQL.run_sql(
         "INSERT INTO api_status_codes (crawl_id, status_code) VALUES (%s, %s)",
-        (latest_crawl_id[0], status_code),
+        (latest_crawl_id[0][0], status_code),
     )
 
 
