@@ -122,7 +122,11 @@ async def main():
 
 
 async def check_channel(ctx) -> bool:
-    return ctx.channel.id in (TEST_CHANNEL_ID, BOARD_MEMBER_CHANNEL_ID)
+    return ctx.channel.id in (
+        TEST_CHANNEL_ID,
+        ANNOUNCE_CHANNEL_ID,
+        BOARD_MEMBER_CHANNEL_ID,
+    )
 
 
 @client.command()
