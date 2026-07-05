@@ -124,7 +124,6 @@ async def main():
 async def check_channel(ctx) -> bool:
     return ctx.channel.id in (
         TEST_CHANNEL_ID,
-        ANNOUNCE_CHANNEL_ID,
         BOARD_MEMBER_CHANNEL_ID,
     )
 
@@ -159,7 +158,8 @@ async def guide(ctx):
 
 @client.command()
 async def test(ctx):
-    if await check_channel(ctx):
+    # テスト、役員用に加えて通知チャンネルでもテストはできるようにする
+    if await check_channel(ctx) or ctx.channel.id == ANNOUNCE_CHANNEL_ID:
         await ctx.send("Announce Bot is Working!")
 
 
