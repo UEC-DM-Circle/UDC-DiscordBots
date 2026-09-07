@@ -14,13 +14,13 @@ class Parser:
         service_id = await Crawler.retrive_id("services", SERVICE_NAME)
         category_id = await Crawler.retrive_id("categories", category)
         if service_id is None or category_id is None:
-            return
+            return ""
         # パースは一回でOK
         if await Logic.judge_iscrawled(url, category):
-            return
+            return ""
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
-            return
+            return ""
         await Crawler.register_crawl(url, "HTTP_GET")
         ranking_img = soup.find("div", class_="EntryBody").find("a").get("href")
         ranking_image_size = await Crawler.try_to_get_image_size(ranking_img)
@@ -34,7 +34,7 @@ class Parser:
             (url, category_id, service_id),
         )
         if original_url_id == []:
-            return
+            return ""
         original_url_id = original_url_id[0]
         await UseMySQL.run_sql(
             "INSERT INTO sent_images (url, original_url_id, category_id, service_id, width, height) VALUES (%s, %s, %s, %s, %s, %s)",
@@ -105,7 +105,7 @@ class Parser:
         return await Parser.parse_soup_of_many_cs_results(soup)
 
     @staticmethod
-    async def parse_hatti_cs_result(new_article: dict):
+    async def parse_hatti_cs_result(new_article: dict) -> tuple[str, list]:
         url = new_article["url"]
         category = new_article["category"]
         # パースは一回でOK
@@ -150,7 +150,7 @@ class Parser:
         if result_url != "":
             soup = await Crawler.try_to_get_soup(result_url)
             if soup == "FAILED":
-                return
+                return "", []
             await Crawler.register_crawl(result_url, "HTTP_GET")
             hatti_base_url = "https://cardshop-hatti.jp"
             figures = soup.find_all("figure", class_="inner_item_img")
@@ -192,7 +192,7 @@ class Parser:
         return f"{result_sentence}\n\n{names}", images
 
     @staticmethod
-    async def parse_ryusei_cs_result(new_article: dict):
+    async def parse_ryusei_cs_result(new_article: dict) -> tuple[str, list]:
         url = new_article["url"]
         category = new_article["category"]
         # パースは一回でOK
@@ -226,7 +226,7 @@ class Parser:
         if result_url != "":
             soup = await Crawler.try_to_get_soup(result_url)
             if soup == "FAILED":
-                return
+                return "", []
             await Crawler.register_crawl(result_url, "HTTP_GET")
             figures = soup.find_all("figure", class_="wp-block-image")
             images = [
@@ -244,7 +244,7 @@ class Parser:
         return f"{result_sentence}\n\n{names}", images
 
     @staticmethod
-    async def parse_gp_result(new_article: dict):
+    async def parse_gp_result(new_article: dict) -> tuple[str, list]:
         url = new_article["url"]
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
@@ -275,7 +275,7 @@ class Parser:
         return f"{result_sentence}\n\n{names}\n\n{distribution}", images
 
     @staticmethod
-    async def parse_cs_result(new_article: dict):
+    async def parse_cs_result(new_article: dict) -> tuple[str, list]:
         url = new_article["url"]
         category = new_article["category"]
         # パースは一回でOK
@@ -304,7 +304,7 @@ class Parser:
         return f"{result_sentence}\n\n{names}", images
 
     @staticmethod
-    async def parse_gold_treasure(new_article: dict):
+    async def parse_gold_treasure(new_article: dict) -> list:
         url = new_article["url"]
         title = new_article["title"]
         category = new_article["category"]
@@ -340,7 +340,7 @@ class Parser:
         )
         return sorted(list(set(newcard_images)))
 
-    async def parse_stream(new_article: dict):
+    async def parse_stream(new_article: dict) -> list:
         url = new_article["url"]
         title = new_article["title"]
         category = new_article["category"]
@@ -388,7 +388,7 @@ class Parser:
         return sorted(list(set(deneblog_images)))
 
     @staticmethod
-    async def parse_new_card(new_article: dict):
+    async def parse_new_card(new_article: dict) -> list:
         url = new_article["url"]
         category = new_article["category"]
         # パースは一回でOK
