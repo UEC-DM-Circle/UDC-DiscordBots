@@ -169,12 +169,6 @@ class Information:
             if await Logic.judge_issent(new_info_image, category):
                 continue
             newcard_image_size = await Crawler.try_to_get_image_size(new_info_image)
-            if (
-                newcard_image_size[0] == newcard_image_size[1]
-                and newcard_image_size[0] != 0
-            ):
-                # 正方形画像は広告
-                continue
             await Crawler.register_crawl(new_info_image, "HTTP_GET")
             original_url_id = await UseMySQL.run_sql(
                 "SELECT id FROM sent_urls WHERE url = %s AND category_id = %s AND service_id = %s ORDER BY id DESC LIMIT 1",
