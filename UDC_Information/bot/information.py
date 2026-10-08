@@ -32,6 +32,10 @@ class Information:
                 many_cs_results = await Parser.parse_many_cs_results(new_article)
                 if not many_cs_results:
                     return
+		await UseMySQL.run_sql(
+                    "INSERT INTO sent_urls (url, title, category_id, service_id) VALUES (%s, %s, %s, %s)",
+                    (url, title, category_id, service_id),
+                )
                 for cs_result in many_cs_results:
                     await Information.send_message(
                         DISCORD_RESULT_CHANNEL_ID, cs_result["result_sentence"]
@@ -51,10 +55,6 @@ class Information:
                         await Information.send_message(
                             DISCORD_RESULT_CHANNEL_ID, tweet_url
                         )
-                await UseMySQL.run_sql(
-                    "INSERT INTO sent_urls (url, title, category_id, service_id) VALUES (%s, %s, %s, %s)",
-                    (url, title, category_id, service_id),
-                )
             case "hatti_cs_result":
                 message, result_images = await Parser.parse_hatti_cs_result(new_article)
                 if not message or not result_images:
