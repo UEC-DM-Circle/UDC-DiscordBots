@@ -32,7 +32,7 @@ class Information:
                 many_cs_results = await Parser.parse_many_cs_results(new_article)
                 if not many_cs_results:
                     return
-		await UseMySQL.run_sql(
+                await UseMySQL.run_sql(
                     "INSERT INTO sent_urls (url, title, category_id, service_id) VALUES (%s, %s, %s, %s)",
                     (url, title, category_id, service_id),
                 )
