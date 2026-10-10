@@ -11,14 +11,14 @@ class Logic:
 
     @staticmethod
     async def judge_iscrawled(url: str, category: str) -> bool:
-        # 3ヶ月以内に同じURLが送信されていないか
+        # 6ヶ月以内に同じURLが送信されていないか
         return (
             await UseMySQL.run_sql(
                 """
                 SELECT 1 FROM sent_urls su
                 JOIN services s ON su.service_id = s.id
                 JOIN categories c ON su.category_id = c.id
-                WHERE s.name = %s AND c.name = %s AND su.url = %s AND su.created_at >= DATE_SUB(NOW(), INTERVAL 3 MONTH)
+                WHERE s.name = %s AND c.name = %s AND su.url = %s AND su.created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
                 LIMIT 1
                 """,
                 (SERVICE_NAME, category, url),
@@ -28,14 +28,14 @@ class Logic:
 
     @staticmethod
     async def judge_issent(url: str, category: str) -> bool:
-        # 3ヶ月以内に同じ画像が送信されていないか
+        # 6ヶ月以内に同じ画像が送信されていないか
         return (
             await UseMySQL.run_sql(
                 """
                 SELECT 1 FROM sent_images si
                 JOIN services s ON si.service_id = s.id
                 JOIN categories c ON si.category_id = c.id
-                WHERE s.name = %s AND c.name = %s AND si.url = %s AND si.created_at >= DATE_SUB(NOW(), INTERVAL 3 MONTH)
+                WHERE s.name = %s AND c.name = %s AND si.url = %s AND si.created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
                 LIMIT 1
                 """,
                 (SERVICE_NAME, category, url),
