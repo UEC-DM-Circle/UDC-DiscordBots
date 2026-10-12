@@ -27,7 +27,22 @@ class Logic:
         )
 
     @staticmethod
-    async def judge_issent(url: str, category: str) -> bool:
+    async def judge_issent_tweet(tweet_id: str) -> bool:
+        # 6ヶ月以内に同じツイートが送信されていないか
+        return (
+            await UseMySQL.run_sql(
+                """
+                SELECT 1 FROM tweets t
+                WHERE t.tweet_id = %s AND t.created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+                LIMIT 1
+                """,
+                (tweet_id,),
+            )
+            != []
+        )
+
+    @staticmethod
+    async def judge_issent_image(url: str, category: str) -> bool:
         # 6ヶ月以内に同じ画像が送信されていないか
         return (
             await UseMySQL.run_sql(
