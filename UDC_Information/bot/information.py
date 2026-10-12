@@ -44,6 +44,10 @@ class Information:
                         cs_result["result_tweets"], cs_result["tweet_texts"]
                     ):
                         tweet_id = tweet_url.split("/")[-1]
+                        if await Logic.judge_issent_tweet(tweet_id):
+                            continue
+                        if len(tweet_text) > 255:
+                            tweet_text = f"{tweet_text[:252]}..."
                         await UseMySQL.run_sql(
                             "INSERT INTO tweets (text, tweet_id, url) VALUES (%s, %s, %s)",
                             (
@@ -132,7 +136,7 @@ class Information:
         for result_image in result_images:
             if not await Logic.judge_isimage(result_image):
                 continue
-            if await Logic.judge_issent(result_image, category):
+            if await Logic.judge_issent_image(result_image, category):
                 continue
             deck_image_size = await Crawler.try_to_get_image_size(result_image)
             await Crawler.register_crawl(result_image, "HTTP_GET")
@@ -166,7 +170,7 @@ class Information:
         for new_info_image in new_info_images:
             if not await Logic.judge_isimage(new_info_image):
                 continue
-            if await Logic.judge_issent(new_info_image, category):
+            if await Logic.judge_issent_image(new_info_image, category):
                 continue
             newcard_image_size = await Crawler.try_to_get_image_size(new_info_image)
             if (
