@@ -110,16 +110,24 @@ class Information:
                     return
                 await Information.send_new_info_images(newcard_images, url, category)
             case "new_card":
-                newcard_images = await Parser.parse_new_card(new_article)
+                # 一回だけ追加する
+                if not await Logic.judge_iscrawled(url, category):
+                    await UseMySQL.run_sql(
+                        "INSERT INTO sent_urls (url, title, category_id, service_id) VALUES (%s, %s, %s, %s)",
+                        (url, title, category_id, service_id),
+                    )
+                newcard_images = await Parser.parse_new_card(url)
                 if not newcard_images:
                     return
-                await UseMySQL.run_sql(
-                    "INSERT INTO sent_urls (url, title, category_id, service_id) VALUES (%s, %s, %s, %s)",
-                    (url, title, category_id, service_id),
-                )
                 await Information.send_new_info_images(newcard_images, url, category)
             case "stream":
-                streamed_images = await Parser.parse_stream(new_article)
+                # 一回だけ追加する
+                if not await Logic.judge_iscrawled(url, category):
+                    await UseMySQL.run_sql(
+                        "INSERT INTO sent_urls (url, title, category_id, service_id) VALUES (%s, %s, %s, %s)",
+                        (url, title, category_id, service_id),
+                    )
+                streamed_images = await Parser.parse_stream(url)
                 if not streamed_images:
                     return
                 await Information.send_new_info_images(streamed_images, url, category)
