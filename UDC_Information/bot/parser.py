@@ -340,25 +340,8 @@ class Parser:
         )
         return sorted(list(set(newcard_images)))
 
-    async def parse_stream(new_article: dict) -> list:
-        url = new_article["url"]
-        title = new_article["title"]
-        category = new_article["category"]
-        service_id = await Crawler.retrive_id("services", SERVICE_NAME)
-        category_id = await Crawler.retrive_id("categories", category)
-        if service_id is None or category_id is None:
-            return []
-        # 1回だけ追加する
-        if not await Logic.judge_iscrawled(url, category):
-            await UseMySQL.run_sql(
-                "INSERT INTO sent_urls (url, title, category_id, service_id) VALUES (%s, %s, %s, %s)",
-                (
-                    url,
-                    title,
-                    category_id,
-                    service_id,
-                ),
-            )
+    @staticmethod
+    async def parse_stream(url: str) -> list:
         soup = await Crawler.try_to_get_soup(url)
         if soup == "FAILED":
             return []
@@ -388,10 +371,5 @@ class Parser:
         return sorted(list(set(deneblog_images)))
 
     @staticmethod
-    async def parse_new_card(new_article: dict) -> list:
-        url = new_article["url"]
-        category = new_article["category"]
-        # パースは一回でOK
-        if await Logic.judge_iscrawled(url, category):
-            return []
+    async def parse_new_card(url: str) -> list:
         return await Parser.parse_deneblog_images(url)
